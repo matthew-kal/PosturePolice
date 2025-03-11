@@ -1,71 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VSCode Camera</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-      }
-      html, body, video, canvas {
-        width: 100vw;
-        height: 100vh;
-      }
-    </style>
-  </head>
-  <body>
-    <video id="selfie" autoplay playsinline></video>
-    <script>
-      window.resizeTo(338, 282);
-      const videoElement = document.getElementById("selfie");
-
-      // Initialize WebSocket connection
-      const socket = new WebSocket("ws://localhost:8000/ws");
-
-      socket.onopen = () => {
-        console.log("WebSocket connection established");
-      };
-
-      socket.onerror = (error) => {
-        console.error("WebSocket Error:", error);
-      };
-
-      navigator.mediaDevices
-        .getUserMedia({
-          video: { facingMode: "user" },
-        })
-        .then((stream) => {
-          videoElement.srcObject = stream;
-          startStreaming(videoElement, socket);
-        })
-        .catch((error) => console.error("Error accessing webcam:", error));
-
-      function startStreaming(video, socket) {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        function captureFrame() {
-          if (socket.readyState !== WebSocket.OPEN) return;
-
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          const frame = canvas.toDataURL("image/jpeg", 0.8);
-          
-          if (frame && frame.length > 100) {
-            socket.send(frame); // Send the Base64 frame to backend
-          } else {
-            console.error("Empty frame data detected, skipping send.");
-          }
-
-          setTimeout(captureFrame, 100); // Capture every 100ms (adjust as needed)
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        captureFrame();
-      }
+        body {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom, #E31E33 -30%, #1E1E1E 20%, #1E1E1E 80%, #4A53E1 130%);
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        video {
+            width: 320px;
+            height: 240px;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .label {
+            font-size: 1.2rem;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .text-box {
+            width: 150px;
+            height: 25px;
+            padding: 10px;
+            background-color: rgba(120, 114, 114, 0.21);
+            border-radius: 4px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+            font-size: 0.8rem;
+            text-align: center;
+            border: 2px solid black;
+            outline: none;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <video id="selfie" autoplay playsinline></video>
+    <audio id="warningSound" src="warn.mp3" preload="auto"></audio>
+
+    <script>
+        // Set fixed window size
+        function setFixedWindowSize() {
+            let width = 800;
+            let height = 600;
+            window.resizeTo(width, height);
+
+            window.onresize = function () {
+                window.resizeTo(width, height);
+            };
+        }
+
+        window.onload = setFixedWindowSize;
+
+        const videoElement = document.getElementById("selfie");
+        const warningSound = document.getElementById("warningSound");
+
+        // WebSocket connection
+        const socket = new WebSocket("ws://localhost:8000/ws");
+
+        socket.onopen = () => console.log("WebSocket connected");
+        socket.onerror = (error) => console.error("WebSocket Error:", error);
+
+        // Slouching Timer Variables
+        let slouchingStartTime = null;
+        let slouchWarningPlayed = false;
+
+        // Handle incoming messages from the backend
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data); // Parse JSON response
+                const slouching = data.slouching;
+
+                if (slouching) {
+                    if (!slouchingStartTime) {
+                        slouchingStartTime = Date.now(); // Start timer
+                    }
+
+                    const elapsedTime = (Date.now() - slouchingStartTime) / 1000; // Convert to seconds
+
+                    if (elapsedTime > 5 && !slouchWarningPlayed) {
+                        console.log("Alert")
+                        warningSound.play(); // Play warning sound
+                        slouchWarningPlayed = true; // Prevent multiple triggers
+                    }
+                } else {
+                    slouchingStartTime = null; // Reset timer
+                    slouchWarningPlayed = false; // Reset warning state
+                }
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+        };
+
+        // Webcam Access & Streaming
+        navigator.mediaDevices
+            .getUserMedia({ video: { facingMode: "user" } })
+            .then((stream) => {
+                videoElement.srcObject = stream;
+                startStreaming(videoElement, socket);
+            })
+            .catch((error) => console.error("Error accessing webcam:", error));
+
+        function startStreaming(video, socket) {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            function captureFrame() {
+                if (socket.readyState !== WebSocket.OPEN) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const frame = canvas.toDataURL("image/jpeg", 0.8);
+                
+                if (frame.length > 100) {
+                    socket.send(frame);
+                } else {
+                    console.error("Empty frame data detected, skipping send.");
+                }
+
+                setTimeout(captureFrame, 100);
+            }
+
+            captureFrame();
+        }
     </script>
-  </body>
+</body>
 </html>

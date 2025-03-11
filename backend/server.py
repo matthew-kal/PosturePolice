@@ -56,7 +56,7 @@ while cap.isOpened():
                     cv2.LINE_AA)
         
       
-        slouch_threshold = 0.225  
+        slouch_threshold = 0.05  
         if distance < slouch_threshold:
             cv2.putText(image, 'Slouching Detected', 
                         (10, 70), 

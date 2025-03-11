@@ -5,6 +5,7 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
+import json
 
 app = FastAPI()
 
@@ -72,7 +73,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Send the result back to the frontend
             print(slouching)
-            await websocket.send_text(f"Slouching: {slouching}")
+            await websocket.send_text(json.dumps({"slouching": slouching}))
 
     except Exception as e:
         print(f"Error: {e}")
