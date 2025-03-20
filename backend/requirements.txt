@@ -5,3 +5,4 @@ mediapipe
 websockets
 numpy
 Pillow
+pygame

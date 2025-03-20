@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VSCode Camera</title>
+    <title>Posture Police</title>
     <style>
         * {
             margin: 0;
@@ -89,37 +89,34 @@
         const videoElement = document.getElementById("selfie");
         const warningSound = document.getElementById("warningSound");
 
-        // WebSocket connection
         const socket = new WebSocket("ws://localhost:8000/ws");
 
         socket.onopen = () => console.log("WebSocket connected");
         socket.onerror = (error) => console.error("WebSocket Error:", error);
 
-        // Slouching Timer Variables
         let slouchingStartTime = null;
         let slouchWarningPlayed = false;
 
-        // Handle incoming messages from the backend
         socket.onmessage = (event) => {
             try {
-                const data = JSON.parse(event.data); // Parse JSON response
+                const data = JSON.parse(event.data);
                 const slouching = data.slouching;
 
                 if (slouching) {
                     if (!slouchingStartTime) {
-                        slouchingStartTime = Date.now(); // Start timer
+                        slouchingStartTime = Date.now(); 
                     }
 
-                    const elapsedTime = (Date.now() - slouchingStartTime) / 1000; // Convert to seconds
+                    const elapsedTime = (Date.now() - slouchingStartTime) / 1000;
 
                     if (elapsedTime > 5 && !slouchWarningPlayed) {
                         console.log("Alert")
-                        warningSound.play(); // Play warning sound
-                        slouchWarningPlayed = true; // Prevent multiple triggers
+                        warningSound.play();
+                        slouchWarningPlayed = true; 
                     }
                 } else {
-                    slouchingStartTime = null; // Reset timer
-                    slouchWarningPlayed = false; // Reset warning state
+                    slouchingStartTime = null;
+                    slouchWarningPlayed = false; 
                 }
             } catch (error) {
                 console.error("Error parsing WebSocket message:", error);
