@@ -47,8 +47,9 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand('slouch-detector.openCamera', async () => {
         const chromeLauncher = await import('chrome-launcher'); // Dynamically import
         chromeLauncher.launch({
+            ignoreDefaultFlags: true,
             chromeFlags: [
-                `--app=file:///${path.join(context.extensionPath, 'camera', 'camera.html').replace('\\', '/')}`
+                `--app=file:///${path.join(context.extensionPath, 'camera', 'camera.html').replace('\\', '/')}`,
             ]
         });
     }));
