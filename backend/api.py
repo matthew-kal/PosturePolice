@@ -100,7 +100,6 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send the sound play instruction and frame to the frontend
             play_sound = slouch_count >= ALERT_THRESHOLD
             print(play_sound)
-            frame = base64.b64encode(cv2.imencode('.jpg', img_rgb)[1]).decode('utf-8')
 
             # Send the data as a JSON object
             message = {

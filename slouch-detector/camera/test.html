@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Posture Police - Camera Monitor</title>
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      background-color: #0a0a0a;
+      color: #ffffff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Main layout */
+    .container {
+      display: flex;
+      height: 100vh;
+      background: linear-gradient(135deg, #0a0a0a 0%, #101c2e 50%, #1a1a1a 100%);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .camera-container {
+      width: 100%;
+      max-width: 768px;
+      aspect-ratio: 16/9;
+      background-color: #0f0f0f;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid #1e3a8a;
+      box-shadow: 0 0 20px rgba(30, 58, 138, 0.5), 0 0 40px rgba(220, 38, 38, 0.2);
+    }
+
+    .camera-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(45deg, #0f172a 0%, #1e3a8a 100%);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Police badge overlay */
+    .badge-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 60px;
+      height: 60px;
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+      width: 320px;
+      border-left: 1px solid #1e3a8a;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Tabs */
+    .tabs-header {
+      border-bottom: 1px solid #1e3a8a;
+      padding: 0.5rem 1rem;
+      background-color: rgba(30, 58, 138, 0.2);
+    }
+
+    .tabs-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      background-color: #0f172a;
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+      border: 1px solid #1e3a8a;
+    }
+
+    .tab-trigger {
+      padding: 0.5rem;
+      text-align: center;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: background-color 0.2s;
+      color: #94a3b8;
+    }
+
+    .tab-trigger.active {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow: auto;
+      padding: 1rem;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Card styles */
+    .card {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      border: 1px solid #1e3a8a;
+    }
+
+    .card-header {
+      padding: 1.5rem 1.5rem 0;
+      border-bottom: 1px solid rgba(30, 58, 138, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+
+    .card-description {
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
+    .card-content {
+      padding: 1.5rem;
+    }
+
+    /* Button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.25rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+    }
+
+    .btn-outline {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #1e3a8a;
+      color: #ffffff;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-outline:hover {
+      background: rgba(30, 58, 138, 0.3);
+      border-color: #3b82f6;
+    }
+
+    .btn-stop {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+      border: none;
+    }
+
+    .btn-stop:hover {
+      background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+    }
+
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+
+    .btn-icon:hover {
+      background: rgba(59, 130, 246, 0.3);
+    }
+
+    /* Settings styles */
+    .settings-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .settings-title {
+      font-size: 1.125rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      border-bottom: 1px solid #1e3a8a;
+      padding-bottom: 0.5rem;
+    }
+
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .settings-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #e2e8f0;
+    }
+
+    .settings-value {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #1f2937;
+      transition: .4s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    /* Range slider */
+    .range-slider {
+      width: 100%;
+      margin-top: 0.5rem;
+      -webkit-appearance: none;
+      height: 6px;
+      background: #1f2937;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+
+    .range-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+
+    /* List styles */
+    ol {
+      padding-left: 1.5rem;
+      margin: 1rem 0;
+      color: #e2e8f0;
+    }
+
+    ol li {
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .text-muted {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+    }
+
+    /* Icons */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Alert overlay */
+    .posture-alert {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(220, 38, 38, 0.3);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      animation: pulse 2s infinite;
+    }
+
+    .posture-alert-message {
+      background: rgba(15, 23, 42, 0.9);
+      border: 2px solid #dc2626;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      font-size: 1.5rem;
+      color: white;
+      text-shadow: 0 0 10px rgba(220, 38, 38, 0.7);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(220, 38, 38, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+      }
+    }
+
+    /* Logo */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      color: #3b82f6;
+    }
+
+    .logo-text {
+      font-weight: bold;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, #3b82f6, #dc2626);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Dropdown styles */
+    .dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .dropdown-select {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.25rem;
+      color: #e2e8f0;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .dropdown-select:hover {
+      border-color: #3b82f6;
+      background: #283548;
+    }
+
+    .dropdown-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .dropdown-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin-top: 0.25rem;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.25rem;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: all 0.2s;
+      pointer-events: none;
+    }
+
+    .dropdown.open .dropdown-options {
+      max-height: 200px;
+      opacity: 1;
+      pointer-events: auto;
+      overflow-y: auto;
+    }
+
+    .dropdown-option {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dropdown-option:hover {
+      background: #283548;
+    }
+
+    .dropdown-option.selected {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    /* Sound preview button */
+    .sound-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Sound categories */
+    .sound-category {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+      padding-bottom: 0.5rem;
+    }
+
+    .sound-category-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Main content area -->
+    <div class="main-content">
+      <div class="camera-container">
+        <div class="camera-placeholder" id="camera-placeholder">
+          <button class="btn btn-primary" id="start-camera">Start Posture Monitoring</button>
+        </div>
+        <video id="camera-video" autoplay playsinline style="display: none;"></video>
+        <button class="btn btn-stop" id="stop-camera" style="display: none;">Stop Monitoring</button>
+        
+        <!-- Police badge overlay -->
+        <svg class="badge-overlay" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L14.5 9H22L16 13.5L18.5 20.5L12 16L5.5 20.5L8 13.5L2 9H9.5L12 2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="1"/>
+          <circle cx="12" cy="11" r="3" fill="#dc2626" stroke="#ffffff" stroke-width="0.5"/>
+        </svg>
+        
+        <!-- Posture alert overlay -->
+        <div class="posture-alert" id="posture-alert">
+          <div class="posture-alert-message">FIX YOUR POSTURE!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="sidebar">
+      <div class="tabs-header">
+        <div class="tabs-list">
+          <div class="tab-trigger active" data-tab="welcome">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Welcome
+          </div>
+          <div class="tab-trigger" data-tab="settings">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Settings
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content active" id="welcome-tab">
+        <div class="card">
+          <div class="card-header">
+            <div class="logo">
+              <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L14.5 9H22L16 13.5L18.5 20.5L12 16L5.5 20.5L8 13.5L2 9H9.5L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="logo-text">POSTURE POLICE</span>
+            </div>
+            <h2 class="card-title">Maintain Perfect Posture</h2>
+            <div class="card-description">
+              Your personal posture monitoring system
+            </div>
+          </div>
+          <div class="card-content">
+            <p>
+              The Posture Police application monitors your sitting position and alerts you when your posture needs correction.
+              To get started:
+            </p>
+            <ol>
+              <li>Click the "Start Posture Monitoring" button in the main view</li>
+              <li>Adjust your monitoring settings in the Settings tab</li>
+              <li>Receive alerts when your posture needs correction</li>
+              <li>Stay healthy with proper ergonomic positioning</li>
+            </ol>
+            <p class="text-muted">
+              Note: Your camera feed is not stored or transmitted anywhere.
+              This application only processes your posture data locally for your health benefit.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="settings-tab">
+        <div class="settings-group">
+          <h3 class="settings-title">Monitoring Settings</h3>
+          
+          <div class="settings-item">
+            <label class="settings-label" for="camera-active">Camera Active</label>
+            <label class="switch">
+              <input type="checkbox" id="camera-active">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <div>
+              <label class="settings-label" for="sensitivity">Sensitivity</label>
+              <span class="settings-value" id="sensitivity-value">70%</span>
+            </div>
+          </div>
+          <input type="range" id="sensitivity" class="range-slider" min="0" max="100" value="70">
+
+          <div class="settings-item">
+            <div>
+              <label class="settings-label" for="alert-threshold">Alert Threshold</label>
+              <span class="settings-value" id="alert-threshold-value">50%</span>
+            </div>
+          </div>
+          <input type="range" id="alert-threshold" class="range-slider" min="0" max="100" value="50">
+
+          <div class="settings-item">
+            <div>
+              <label class="settings-label" for="alert-delay">Alert Delay (seconds)</label>
+              <span class="settings-value" id="alert-delay-value">3s</span>
+            </div>
+          </div>
+          <input type="range" id="alert-delay" class="range-slider" min="1" max="10" value="3">
+
+          <div class="settings-item">
+            <label class="settings-label" for="mirror">Mirror Image</label>
+            <label class="switch">
+              <input type="checkbox" id="mirror" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <label class="settings-label" for="posture-grid">Show Posture Grid</label>
+            <label class="switch">
+              <input type="checkbox" id="posture-grid">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="settings-item">
+            <label class="settings-label" for="sound-alerts">Sound Alerts</label>
+            <label class="switch">
+              <input type="checkbox" id="sound-alerts" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Sound Settings -->
+        <div class="settings-group">
+          <h3 class="settings-title">Alert Sounds</h3>
+          
+          <!-- Police Sounds Category -->
+          <div class="sound-category">
+            <div class="sound-category-title">Police Sounds</div>
+            <div class="settings-item">
+              <label class="settings-label" for="police-sound">Police Alert</label>
+              <div class="dropdown" id="police-sound-dropdown">
+                <div class="dropdown-select" id="police-sound-select">
+                  <span>Police Siren</span>
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="dropdown-options">
+                  <div class="dropdown-option selected" data-value="police-siren">
+                    <span>Police Siren</span>
+                    <button class="btn-icon" data-sound="police-siren">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="police-radio">
+                    <span>Police Radio</span>
+                    <button class="btn-icon" data-sound="police-radio">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="police-whistle">
+                    <span>Police Whistle</span>
+                    <button class="btn-icon" data-sound="police-whistle">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Voice Alerts Category -->
+          <div class="sound-category">
+            <div class="sound-category-title">Voice Alerts</div>
+            <div class="settings-item">
+              <label class="settings-label" for="voice-alert">Voice Alert</label>
+              <div class="dropdown" id="voice-alert-dropdown">
+                <div class="dropdown-select" id="voice-alert-select">
+                  <span>Fix Your Posture</span>
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="dropdown-options">
+                  <div class="dropdown-option selected" data-value="fix-posture">
+                    <span>Fix Your Posture</span>
+                    <button class="btn-icon" data-sound="fix-posture">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="sit-straight">
+                    <span>Sit Up Straight</span>
+                    <button class="btn-icon" data-sound="sit-straight">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="posture-warning">
+                    <span>Posture Warning</span>
+                    <button class="btn-icon" data-sound="posture-warning">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Tone Alerts Category -->
+          <div class="sound-category">
+            <div class="sound-category-title">Tone Alerts</div>
+            <div class="settings-item">
+              <label class="settings-label" for="tone-alert">Tone Alert</label>
+              <div class="dropdown" id="tone-alert-dropdown">
+                <div class="dropdown-select" id="tone-alert-select">
+                  <span>Alert Beep</span>
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="dropdown-options">
+                  <div class="dropdown-option selected" data-value="alert-beep">
+                    <span>Alert Beep</span>
+                    <button class="btn-icon" data-sound="alert-beep">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="alarm-tone">
+                    <span>Alarm Tone</span>
+                    <button class="btn-icon" data-sound="alarm-tone">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="buzzer">
+                    <span>Buzzer</span>
+                    <button class="btn-icon" data-sound="buzzer">
+                      <svg class="icon" viewBox="0 0 24 24">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Test Alert Button -->
+          <div class="settings-item">
+            <label class="settings-label" for="demo-alert">Test Alert</label>
+            <button class="btn btn-primary" id="demo-alert">Trigger Demo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const startCameraBtn = document.getElementById('start-camera');
+    const stopCameraBtn = document.getElementById('stop-camera');
+    const cameraVideo = document.getElementById('camera-video');
+    const cameraPlaceholder = document.getElementById('camera-placeholder');
+    const cameraActiveSwitch = document.getElementById('camera-active');
+    const tabTriggers = document.querySelectorAll('.tab-trigger');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const sensitivitySlider = document.getElementById('sensitivity');
+    const alertThresholdSlider = document.getElementById('alert-threshold');
+    const alertDelaySlider = document.getElementById('alert-delay');
+    const sensitivityValue = document.getElementById('sensitivity-value');
+    const alertThresholdValue = document.getElementById('alert-threshold-value');
+    const alertDelayValue = document.getElementById('alert-delay-value');
+    const mirrorSwitch = document.getElementById('mirror');
+    const postureGridSwitch = document.getElementById('posture-grid');
+    const soundAlertsSwitch = document.getElementById('sound-alerts');
+    const demoAlertBtn = document.getElementById('demo-alert');
+    const postureAlert = document.getElementById('posture-alert');
+    
+    // Dropdown elements
+    const dropdowns = document.querySelectorAll('.dropdown');
+    const policeSoundDropdown = document.getElementById('police-sound-dropdown');
+    const voiceAlertDropdown = document.getElementById('voice-alert-dropdown');
+    const toneAlertDropdown = document.getElementById('tone-alert-dropdown');
+    
+    // Sound preview buttons
+    const soundPreviewButtons = document.querySelectorAll('.btn-icon');
+
+    // Socket
+    let socket
+
+    // Camera state
+    let cameraActive = false;
+    let stream = null;
+    let postureCheckInterval = null;
+    
+    // Sound settings
+    let currentPoliceSound = 'police-siren';
+    let currentVoiceAlert = 'fix-posture';
+    let currentToneAlert = 'alert-beep';
+    let currentAlertSound = 'police-siren'; // Default alert sound
+    let soundPlaying = false;
+    let soundTimeout = 1000; // 1 second timeout for sound
+    // Audio elements for sound previews
+    const audioElements = {
+      'police-siren': new Audio('https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3'),
+      'police-radio': new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'),
+      'police-whistle': new Audio('https://assets.mixkit.co/active_storage/sfx/2864/2864-preview.mp3'),
+      'fix-posture': new Audio('https://assets.mixkit.co/active_storage/sfx/2766/2766-preview.mp3'),
+      'sit-straight': new Audio('https://assets.mixkit.co/active_storage/sfx/2767/2767-preview.mp3'),
+      'posture-warning': new Audio('https://assets.mixkit.co/active_storage/sfx/2768/2768-preview.mp3'),
+      'alert-beep': new Audio('https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3'),
+      'alarm-tone': new Audio('https://assets.mixkit.co/active_storage/sfx/1033/1033-preview.mp3'),
+      'buzzer': new Audio('https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3')
+    };
+
+    // Functions
+    function startCamera() {
+        navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+            cameraVideo.srcObject = stream;
+            cameraVideo.style.display = 'block';
+            cameraPlaceholder.style.display = 'none';
+            stopCameraBtn.style.display = 'block';
+            cameraActive = true;
+            cameraActiveSwitch.checked = true;
+
+            // Apply mirror effect if enabled
+            applyMirrorEffect();
+
+            // Start posture monitoring (WebSocket and frame streaming)
+            startPostureMonitoring(cameraVideo);
+            })
+        .catch((err) => {
+        console.error('Error accessing camera:', err);
+        alert('Could not access camera. Please check permissions.');
+        });
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      cameraVideo.style.display = 'none';
+      cameraPlaceholder.style.display = 'flex';
+      stopCameraBtn.style.display = 'none';
+      cameraActive = false;
+      cameraActiveSwitch.checked = false;
+      
+      // Stop posture monitoring
+      stopPostureMonitoring();
+    }
+
+    function switchTab(tabId) {
+      // Update tab triggers
+      tabTriggers.forEach(trigger => {
+        if (trigger.dataset.tab === tabId) {
+          trigger.classList.add('active');
+        } else {
+          trigger.classList.remove('active');
+        }
+      });
+
+      // Update tab contents
+      tabContents.forEach(content => {
+        if (content.id === `${tabId}-tab`) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    }
+
+    function updateSliderValue(slider, valueElement, suffix = '%') {
+      valueElement.textContent = `${slider.value}${suffix}`;
+    }
+
+    function applyMirrorEffect() {
+      if (mirrorSwitch.checked) {
+        cameraVideo.style.transform = 'scaleX(-1)';
+      } else {
+        cameraVideo.style.transform = 'scaleX(1)';
+      }
+    }
+    
+    // Simulated posture monitoring
+    function startPostureMonitoring(video) {
+        // Open WebSocket connection
+        socket = new WebSocket("ws://localhost:8000/ws");
+  
+        socket.onopen = () => {
+            console.log("WebSocket connected");
+            startStreaming(video, socket); // Start sending frames after WebSocket is open
+        };
+
+        socket.onerror = (error) => {
+            console.error("WebSocket Error:", error);
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                const slouching = data.play_sound;
+
+                // Play sound if slouching detected
+                if (slouching) {
+                    showPostureAlert();
+                } else {
+                    hidePostureAlert();
+                }
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+            };
+        }   
+    
+    function startStreaming(video, socket) {
+      
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.error("WebSocket is not open yet.");
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        function captureFrame() {
+            if (socket.readyState !== WebSocket.OPEN) return;
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+            const frame = canvas.toDataURL("image/jpeg", 0.8);
+        
+            if (frame.length > 100) {
+                socket.send(frame);
+            } else {
+                console.error("Empty frame data detected, skipping send.");
+            }
+
+            setTimeout(captureFrame, 100);
+        }
+
+        captureFrame();
+    }
+
+    function stopPostureMonitoring() {
+        // Close WebSocket connection
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.close();
+            console.log("WebSocket closed");
+        }
+    }
+    
+    function showPostureAlert() {
+         postureAlert.style.display = 'flex';   
+        // Play sound if enabled
+        if (!soundPlaying) {
+            // Mark the sound as playing
+            soundPlaying = true;
+
+            // Play the selected sound
+            if (soundAlertsSwitch.checked) {
+                playAlertSound(currentAlertSound);
+            }
+
+            // Reset the sound playing flag after the timeout
+            setTimeout(() => {
+                soundPlaying = false; // Allow the sound to be played again after the timeout
+            }, soundTimeout);
+        }
+    }
+    
+    function hidePostureAlert() {
+      postureAlert.style.display = 'none';
+    }
+    
+    // Sound functions
+    function playAlertSound(soundId) {
+      // Stop any currently playing sounds
+      Object.values(audioElements).forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+      
+      // Play the selected sound
+      if (audioElements[soundId]) {
+        audioElements[soundId].play();
+      }
+    }
+    
+    function updateSelectedSound(dropdownId, soundId) {
+      const dropdown = document.getElementById(dropdownId);
+      const selectElement = dropdown.querySelector('.dropdown-select span');
+      
+      // Update the dropdown display
+      dropdown.querySelectorAll('.dropdown-option').forEach(option => {
+        if (option.dataset.value === soundId) {
+          option.classList.add('selected');
+          selectElement.textContent = option.querySelector('span').textContent;
+        } else {
+          option.classList.remove('selected');
+        }
+      });
+      
+      // Update the current sound based on dropdown
+      if (dropdownId === 'police-sound-dropdown') {
+        currentPoliceSound = soundId;
+        currentAlertSound = soundId; // Set as current alert sound
+      } else if (dropdownId === 'voice-alert-dropdown') {
+        currentVoiceAlert = soundId;
+      } else if (dropdownId === 'tone-alert-dropdown') {
+        currentToneAlert = soundId;
+      }
+    }
+    
+    // Dropdown functions
+    function toggleDropdown(dropdown) {
+      // Close all other dropdowns
+      dropdowns.forEach(d => {
+        if (d !== dropdown) {
+          d.classList.remove('open');
+        }
+      });
+      
+      // Toggle the current dropdown
+      dropdown.classList.toggle('open');
+    }
+
+    // Event Listeners
+    startCameraBtn.addEventListener('click', startCamera);
+    stopCameraBtn.addEventListener('click', stopCamera);
+    
+    cameraActiveSwitch.addEventListener('change', function() {
+      if (this.checked) {
+        startCamera();
+      } else {
+        stopCamera();
+      }
+    });
+
+    tabTriggers.forEach(trigger => {
+      trigger.addEventListener('click', function() {
+        switchTab(this.dataset.tab);
+      });
+    });
+
+    // Slider event listeners
+    sensitivitySlider.addEventListener('input', function() {
+      updateSliderValue(this, sensitivityValue);
+    });
+
+    alertThresholdSlider.addEventListener('input', function() {
+      updateSliderValue(this, alertThresholdValue);
+    });
+
+    alertDelaySlider.addEventListener('input', function() {
+      updateSliderValue(this, alertDelayValue, 's');
+    });
+
+    mirrorSwitch.addEventListener('change', applyMirrorEffect);
+    
+    demoAlertBtn.addEventListener('click', showPostureAlert);
+    
+    // Dropdown event listeners
+    dropdowns.forEach(dropdown => {
+      const select = dropdown.querySelector('.dropdown-select');
+      select.addEventListener('click', () => toggleDropdown(dropdown));
+      
+      // Handle option selection
+      const options = dropdown.querySelectorAll('.dropdown-option');
+      options.forEach(option => {
+        option.addEventListener('click', function() {
+          const soundId = this.dataset.value;
+          const dropdownId = dropdown.id;
+          updateSelectedSound(dropdownId, soundId);
+          toggleDropdown(dropdown); // Close dropdown after selection
+        });
+      });
+    });
+    
+    // Sound preview buttons
+    soundPreviewButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent dropdown from closing
+        const soundId = this.dataset.sound;
+        playAlertSound(soundId);
+      });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown')) {
+        dropdowns.forEach(dropdown => {
+          dropdown.classList.remove('open');
+        });
+      }
+    });
+
+    // Initialize slider values
+    updateSliderValue(sensitivitySlider, sensitivityValue);
+    updateSliderValue(alertThresholdSlider, alertThresholdValue);
+    updateSliderValue(alertDelaySlider, alertDelayValue, 's');
+  </script>
+</body>
+</html>

@@ -4,83 +4,250 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Posture Police</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        /* CSS styles omitted for brevity */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        #videoContainer {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #selfie {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #sidebar {
+            width: 35%;
+            background-color: #1E1E1E;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Enable scrollbar when content overflows */
+        }
+
+        #sidebarHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #sidebarHeader h2 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        #sidebar p {
+            font-weight: 400;
+            margin-top: 10px;
+        }
+
+        /* Row container for dropdowns */
+        /* Row container for dropdowns */
+        /* Row container for dropdowns */
+.dropdown-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+/* Set the width of each dropdown container to be equal */
+.dropdown-container div {
+    width: 48%; /* Each container takes up 48% of the width */
+    display: flex;
+    flex-direction: column; /* Arrange the title and dropdown vertically */
+    margin-bottom: 15px;
+}
+
+/* Dropdown styling */
+.dropdown-container select {
+    width: 100%; /* Ensure each dropdown takes up the full width of the container */
+    padding: 10px;
+    font-size: 16px;
+    background-color: #383838;
+    color: white;
+    border: none; /* Remove the border */
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5); /* Add drop shadow to dropdown */
+}
+
+/* Title for each dropdown */
+.dropdown-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: white;
+    margin-bottom: 15px; /* Increased the margin */
+    white-space: nowrap; /* Prevent text wrapping */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7); /* Add drop shadow to titles */
+}
+
+        #dimensionsDisplay {
+            margin-top: 20px;
+            color: white;
+            font-size: 16px;
+        }
+
+        /* Custom Scrollbar Styles */
+        #sidebar::-webkit-scrollbar {
+            width: 6px; /* Width of the scrollbar */
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
+            background-color: #444444; /* Green thumb */
+            border-radius: 10px; /* Round corners */
+        }
+
+        #infoIcon {
+            filter: invert(100%) sepia(100%) saturate(100%) hue-rotate(180deg);
+        }
     </style>
 </head>
 <body>
-    <video id="selfie" autoplay playsinline></video>
+    <div id="container">
+        <!-- Video container for webcam -->
+        <div id="videoContainer">
+            <video id="selfie" autoplay playsinline></video>
+        </div>
+
+        <!-- Sidebar with settings -->
+        <div id="sidebar">
+            <div id="sidebarHeader">
+                <h2>Settings</h2>
+                <img id="infoIcon" src="./info.svg" alt="Info Icon" />
+            </div>
+            <p>Adjust the posture detection sensitivity</p>
+
+            <!-- Row 1: Change Sound and Camera Angle Dropdowns -->
+            <div class="dropdown-container">
+                <div>
+                    <div class="dropdown-title">Change Sound</div>
+                    <select id="soundSelect">
+                        <option value="1">Normal Sound</option>
+                        <option value="0.5">Low Sound</option>
+                        <option value="1.5">High Sound</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="dropdown-title">Camera Angle</div>
+                    <select id="cameraAngleSelect">
+                        <option value="front">Front View</option>
+                        <option value="left">Left View</option>
+                        <option value="right">Right View</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 2: Scaling Options and Another Camera Angle Dropdown -->
+            <div class="dropdown-container">
+                <div>
+                    <div class="dropdown-title">Window Sizing</div>
+                    <select id="windowSizeSelect" onchange="resizeWindow()">
+                        <!-- Dynamic options will be added here -->
+                    </select>
+                </div>
+                <div>
+                    <div class="dropdown-title">Camera Angle</div>
+                    <select id="cameraAngleSelect2">
+                        <option value="front">Front View</option>
+                        <option value="left">Left View</option>
+                        <option value="right">Right View</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="dimensionsDisplay"></div>
+        </div>
+    </div>
+
     <audio id="warningSound" src="warn.mp3" preload="auto"></audio>
 
     <script>
-        // Set fixed window size
-        function setFixedWindowSize() {
-            let width = 800;
-            let height = 600;
-            window.resizeTo(width, height);
-
-            window.onresize = function () {
-                window.resizeTo(width, height);
-            };
-        }
-
-        window.onload = setFixedWindowSize;
-
         const videoElement = document.getElementById("selfie");
         const warningSound = document.getElementById("warningSound");
+        const sidebar = document.getElementById('sidebar');
+        const videoContainer = document.getElementById('videoContainer');
+        const windowSizeSelect = document.getElementById('windowSizeSelect');
+        const dimensionsDisplay = document.getElementById('dimensionsDisplay');
+        const soundSelect = document.getElementById('soundSelect');
+        const cameraAngleSelect = document.getElementById('cameraAngleSelect');
 
-        const socket = new WebSocket("ws://localhost:8000/ws");
+        let videoWidth, videoHeight;
 
-        socket.onopen = () => console.log("WebSocket connected");
-        socket.onerror = (error) => console.error("WebSocket Error:", error);
+        // Dynamically set window size and update proportions based on camera dimensions and scaling factor
+        function resizeWindow() {
+            const scale = parseFloat(windowSizeSelect.value); // Get the scaling factor from the dropdown
+            const sidebarWidth = 300;  // Sidebar width is fixed
 
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);  // This assumes the backend sends a valid JSON string
-                const slouching = data.play_sound;
+            // Calculate the new window width and height based on scaling factor
+            const newWidth = videoWidth * scale;
+            const newHeight = videoHeight * scale;
 
-                // Play sound if slouching detected
-                if (slouching) {
-                    warningSound.play();
-                }   
-            } catch (error) {
-            console.error("Error parsing WebSocket message:", error);
-            }
-        };
+            // Resize the window based on the new width and height
+            const windowWidth = Math.round(newWidth + sidebarWidth); // Ensure it's rounded
+            const windowHeight = Math.round(newHeight); // Ensure it's rounded
+
+            window.resizeTo(windowWidth, windowHeight);  // Resize the actual window
+
+            // Display the current window dimensions dynamically
+            dimensionsDisplay.textContent = `Current dimensions: ${windowWidth}x${windowHeight}`;
+        }
+
+        // Update the video and sidebar layout based on the window size
+        function updateLayout(width, height) {
+            sidebar.style.width = `300px`;  // Fixed sidebar width
+            videoContainer.style.maxWidth = `${width - 300}px`;  // The video container will take up all space except for the sidebar width
+        }
+
+        // Function to update the dropdown options dynamically
+        function updateDropdown() {
+            const scales = [1.5, 1, 0.75, 0.5];
+            windowSizeSelect.innerHTML = ''; // Clear existing options
+
+            scales.forEach(scale => {
+                const newWidth = Math.round(videoWidth * scale) + 300;
+                const newHeight = Math.round(videoHeight * scale);
+                const option = document.createElement('option');
+                option.value = scale;
+                option.textContent = `${newWidth}x${newHeight}`;
+                windowSizeSelect.appendChild(option);
+            });
+        }
 
         // Webcam Access & Streaming
         navigator.mediaDevices
             .getUserMedia({ video: { facingMode: "user" } })
             .then((stream) => {
                 videoElement.srcObject = stream;
-                startStreaming(videoElement, socket);
+
+                // Once the video stream is available, set the window size
+                videoElement.onloadedmetadata = () => {
+                    videoWidth = videoElement.videoWidth;  // Get the video feed width
+                    videoHeight = videoElement.videoHeight;  // Get the video feed height
+
+                    // Initialize with normal size (100%)
+                    updateDropdown(); // Update the dropdown with the actual sizes
+                    resizeWindow();
+                };
             })
             .catch((error) => console.error("Error accessing webcam:", error));
-
-        function startStreaming(video, socket) {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-
-            function captureFrame() {
-                if (socket.readyState !== WebSocket.OPEN) return;
-
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                const frame = canvas.toDataURL("image/jpeg", 0.8);
-                
-                if (frame.length > 100) {
-                    socket.send(frame);
-                } else {
-                    console.error("Empty frame data detected, skipping send.");
-                }
-
-                setTimeout(captureFrame, 100);
-            }
-
-            captureFrame();
-        }
     </script>
 </body>
 </html>
