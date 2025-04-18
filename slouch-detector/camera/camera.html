@@ -81,8 +81,24 @@
       height: 100%;
       display: flex;
       flex-direction: column;
+      position: relative; /* Add this */
+      overflow: visible; /* Ensure tooltips can overflow */
+      overflow-y: auto; /* ← enables vertical scrolling */
+      overflow-x: hidden; /* ← prevents sideways scroll */
     }
 
+    /* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 4px; /* Slim scrollbar */
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: #2563eb; /* Slightly brighter blue on hover */
+}
     /* Tabs */
     .tabs-header {
       border-bottom: 1px solid #1e3a8a;
@@ -122,7 +138,7 @@
 
     .tab-content {
       flex: 1;
-      overflow: auto;
+      overflow: visible;
       padding: 1rem;
       display: none;
     }
@@ -268,6 +284,7 @@
     .settings-value {
       font-size: 0.75rem;
       color: #94a3b8;
+      margin-left: 0.25rem;
     }
 
     /* Switch */
@@ -445,7 +462,7 @@
     /* Dropdown styles */
     .dropdown {
       position: relative;
-      width: 100%;
+      width: 70%;
     }
 
     .dropdown-select {
@@ -535,6 +552,89 @@
       color: #94a3b8;
       margin-bottom: 0.5rem;
     }
+
+    /* Info button styles */
+    .info-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      margin-left: 12px;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .info-button:hover {
+      background: rgba(59, 130, 246, 0.3);
+    }
+
+    .info-button::after {
+      content: "i";
+      font-size: 10px;
+      font-style: italic;
+      font-weight: bold;
+      color: #3b82f6;
+    }
+
+    /* Tooltip styles */
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      background-color: #0f172a;
+      color: #e2e8f0;
+      text-align: left;
+      border-radius: 6px;
+      padding: 10px;
+      position: absolute;
+      z-index: 9999;
+      bottom:  180%; /* position above the button */
+      left: 50%; /* center horizontally */
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+      line-height: 1.5;
+      border: 1px solid #1e3a8a;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      white-space: normal;
+      word-wrap: break-word;
+      min-width: 150px;
+      max-width: 220px;
+      }
+
+    .tooltip .tooltip-text::after {
+      left: 50%;
+      transform: translateX(-50%);
+      content: "";
+      position: absolute;
+      top: 100%; /* below the box */
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid #1e3a8a;
+    }
+
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* For settings with labels */
+    .settings-label-container {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
   </style>
 </head>
 <body>
@@ -612,6 +712,10 @@
               Note: Your camera feed is not stored or transmitted anywhere.
               This application only processes your posture data locally for your health benefit.
             </p>
+            <p class="text-muted" style="margin-top: 2rem; text-align: center; width: fit-content; margin-left: auto; margin-right: auto;">
+              Made by<br>
+              <span style="white-space: nowrap;">Matthew Kalendar and Joffre Loor</span>
+            </p>
           </div>
         </div>
       </div>
@@ -621,7 +725,12 @@
           <h3 class="settings-title">Monitoring Settings</h3>
           
           <div class="settings-item">
-            <label class="settings-label" for="camera-active">Camera Active</label>
+            <div class="settings-label-container">
+              <label class="settings-label" for="camera-active">Camera Active</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables or disables camera. When active, your camera will be used to analyze your posture.</span></span>
+              </div>
+            </div>
             <label class="switch">
               <input type="checkbox" id="camera-active">
               <span class="slider"></span>
@@ -630,31 +739,66 @@
 
           <div class="slider-settings-item">
             <div>
-              <label class="settings-label" for="sensitivity">Sensitivity</label>
-              <span class="settings-value" id="sensitivity-value">70%</span>
+              <div class="settings-label-container">
+                <div class="label-value-pair">
+                  <label class="settings-label" for="sensitivity">Sensitivity</label>
+                  <span class="settings-value" id="sensitivity-value">1.0</span>
+                </div>
+                <div class="tooltip">
+                  <span class="info-button">
+                    <span class="tooltip-text">Adjusts how sensitive the posture detection is. Higher values will detect smaller posture changes, while lower values are more forgiving.</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <input type="range" id="sensitivity" class="range-slider" min="0.85" max="1.15" value="1.0" step="0.01">
 
           <div class="slider-settings-item">
-            <div>
-              <label class="settings-label" for="alert-delay">Alert Delay (seconds)</label>
-              <span class="settings-value" id="alert-delay-value">3s</span>
+            <div class="settings-label-container">
+              <div class="label-value-pair">
+                <label class="settings-label" for="alert-delay">Alert Delay (seconds)</label>
+                <span class="settings-value" id="alert-delay-value">3s</span>
+              </div>
+              <div class="tooltip">
+                <span class="info-button">
+                  <span class="tooltip-text">
+                    Sets how long the system waits before alerting you about poor posture.
+                    A longer delay prevents alerts for momentary posture changes.
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
+          
           <input type="range" id="alert-delay" class="range-slider" min="1" max="10" value="3">
 
 
           <div class="slider-settings-item">
-            <div>
-              <label class="settings-label" for="volume">Volume</label>
-              <span class="settings-value" id="volume-value">50%</span>
+            <div class="settings-label-container">
+              <div class="label-value-pair">
+                <label class="settings-label" for="volume">Volume</label>
+                <span class="settings-value" id="volume-value">50%</span>
+              </div>
+              <div class="tooltip">
+                <span class="info-button">
+                  <span class="tooltip-text">
+                    Controls the volume of alert sounds. Set to 0% to have visual alerts only without sound.
+                  </span>
+               </span>
+              </div>
             </div>
           </div>
+
           <input type="range" id="volume" class="range-slider" min="0" max="100" value="50">
 
           <div class="settings-item">
-            <label class="settings-label" for="mirror">Mirror Image</label>
+            <div class="settings-label-container">
+              <label class="settings-label" for="mirror">Mirror Image</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Flips the camera horizontally to show a mirror image, which may feel more natural when viewing yourself.</span></span>
+              </div>
+            </div>
             <label class="switch">
               <input type="checkbox" id="mirror" checked>
               <span class="slider"></span>
@@ -662,7 +806,12 @@
           </div>
           
           <div class="settings-item">
-            <label class="settings-label" for="sound-alerts">Sound Alerts</label>
+            <div class="settings-label-container">
+              <label class="settings-label" for="sound-alerts">Sound Alerts</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables audio notifications when poor posture is detected. Turn off for silent visual alerts only.</span></span>
+              </div>
+            </div>
             <label class="switch">
               <input type="checkbox" id="sound-alerts" checked>
               <span class="slider"></span>
@@ -676,32 +825,49 @@
           
           <!-- Police Sounds Category -->
           <div class="sound-category">
-            <div class="sound-category-title">Police Sounds</div>
+            <div class="sound-category-title"></div>
             <div class="settings-item">
-              <label class="settings-label" for="police-sound">Police Alert</label>
+              <div class="settings-label-container">
+                <label class="settings-label" for="police-sound">Alerts</label>
+                <div class="tooltip">
+                  <span class="info-button"><span class="tooltip-text">Select the sound that plays when poor posture is detected. You can preview each sound by clicking the speaker icon.</span></span>
+                </div>
+              </div>
               <div class="dropdown" id="police-sound-dropdown">
                 <div class="dropdown-select" id="police-sound-select">
-                  <span>Police Siren</span>
+                  <span>Bell</span>
                   <svg class="icon" viewBox="0 0 24 24">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </div>
                 <div class="dropdown-options">
-                  <div class="dropdown-option selected" data-value="police-siren">
-                    <span>Police Siren</span>
-                    <button class="btn-icon" data-sound="police-siren">
+                  <div class="dropdown-option selected" data-value="bell">
+                    <span>Bell</span>
+                    <button class="btn-icon" data-sound="bell">
                       <img class="icon" src="volume-icon.png" alt="icon">
                     </button>
                   </div>
-                  <div class="dropdown-option" data-value="police-radio">
-                    <span>Police Radio</span>
-                    <button class="btn-icon" data-sound="police-radio">
+                  <div class="dropdown-option" data-value="radio">
+                    <span>Radio</span>
+                    <button class="btn-icon" data-sound="radio">
                       <img class="icon" src="volume-icon.png" alt="icon">
                     </button>
                   </div>
-                  <div class="dropdown-option" data-value="police-whistle">
-                    <span>Police Whistle</span>
-                    <button class="btn-icon" data-sound="police-whistle">
+                  <div class="dropdown-option" data-value="sigh">
+                    <span>Sigh</span>
+                    <button class="btn-icon" data-sound="sigh">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="siren">
+                    <span>Siren</span>
+                    <button class="btn-icon" data-sound="siren">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="beep">
+                    <span>Beep</span>
+                    <button class="btn-icon" data-sound="beep">
                       <img class="icon" src="volume-icon.png" alt="icon">
                     </button>
                   </div>
@@ -712,7 +878,12 @@
           
           <!-- Test Alert Button -->
           <div class="settings-item">
-            <label class="settings-label" for="demo-alert">Test Alert</label>
+            <div class="settings-label-container">
+              <label class="settings-label" for="demo-alert">Test Alert</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Triggers a demonstration of the posture alert with the current sound and volume settings.</span></span>
+              </div>
+            </div>
             <button class="btn btn-primary" id="demo-alert">Trigger Demo</button>
           </div>
         </div>
@@ -743,8 +914,6 @@
     // Dropdown elements
     const dropdowns = document.querySelectorAll('.dropdown');
     const policeSoundDropdown = document.getElementById('police-sound-dropdown');
-    const voiceAlertDropdown = document.getElementById('voice-alert-dropdown');
-    const toneAlertDropdown = document.getElementById('tone-alert-dropdown');
     
     // Sound preview buttons
     const soundPreviewButtons = document.querySelectorAll('.btn-icon');
@@ -758,25 +927,21 @@
     let postureCheckInterval = null;
     
     // Sound settings
-    let currentPoliceSound = 'police-siren';
-    let currentVoiceAlert = 'fix-posture';
-    let currentToneAlert = 'alert-beep';
-    let currentAlertSound = 'police-siren'; // Default alert sound
+    let currentAlertSound = 'bell'; // Default alert sound
     let soundPlaying = false;
     let soundTimeout = 3000; // 1 second timeout for sound
     // Audio elements for sound previews
     const audioElements = {
-      'police-siren': new Audio('https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3'),
-      'police-radio': new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'),
-      'police-whistle': new Audio('https://assets.mixkit.co/active_storage/sfx/2864/2864-preview.mp3'),
-      'fix-posture': new Audio('https://assets.mixkit.co/active_storage/sfx/2766/2766-preview.mp3'),
-      'sit-straight': new Audio('https://assets.mixkit.co/active_storage/sfx/2767/2767-preview.mp3'),
-      'posture-warning': new Audio('https://assets.mixkit.co/active_storage/sfx/2768/2768-preview.mp3'),
-      'alert-beep': new Audio('https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3'),
-      'alarm-tone': new Audio('https://assets.mixkit.co/active_storage/sfx/1033/1033-preview.mp3'),
-      'buzzer': new Audio('https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3')
+      'bell': new Audio('./audio/bell.mp3'),
+      'radio': new Audio('./audio/radio.mp3'),
+      'sigh': new Audio('./audio/sigh.mp3'),
+      'beep': new Audio('./audio/beep.m4a'),
+      'siren': new Audio('./audio/siren.mp3')
     };
 
+
+    // Test Boolean
+    let testTriggered = false
     // Functions
     function startCamera() {
         navigator.mediaDevices.getUserMedia({ video: true })
@@ -870,7 +1035,9 @@
                 if (slouching) {
                     showPostureAlert();
                 } else {
-                    hidePostureAlert();
+                    if (!testTriggered) {
+                        hidePostureAlert();
+                    }
                 }
             } catch (error) {
                 console.error("Error parsing WebSocket message:", error);
@@ -928,16 +1095,11 @@
             soundPlaying = true;
             // Play the selected sound
             if (soundAlertsSwitch.checked) {
-              const audio = audioElements[currentAlertSound];
-
-              // Play the selected sound
-              audio.play();
-             // When the sound finishes playing
-              audio.onended = () => {
-                  setTimeout(() => {
-                      soundPlaying = false;
-                    }, soundTimeout);
-                };
+                playAlertSound(currentAlertSound)
+                 // When the sound finishes playing
+                setTimeout(() => {
+                    soundPlaying = false;
+                }, soundTimeout);
             } 
         }
     }
@@ -948,16 +1110,19 @@
     
     // Sound functions
     function playAlertSound(soundId) {
-      // Stop any currently playing sounds
-      Object.values(audioElements).forEach(audio => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
+      const audio = audioElements[soundId];
+    
+      // Reset audio
+      audio.pause();
+      audio.currentTime = 0;
       
-      // Play the selected sound
-      if (audioElements[soundId]) {
-        audioElements[soundId].play();
-      }
+      // Set volume to current slider value
+      audio.volume = volumeSlider.value / 100;
+      console.log("Volume at play time:", audio.volume);
+      // Play
+      audio.play().catch(err => {
+        console.error('Audio playback failed:', err);
+      });
     }
     
     function updateSelectedSound(dropdownId, soundId) {
@@ -974,15 +1139,7 @@
         }
       });
       
-      // Update the current sound based on dropdown
-      if (dropdownId === 'police-sound-dropdown') {
-        currentPoliceSound = soundId;
-        currentAlertSound = soundId; // Set as current alert sound
-      } else if (dropdownId === 'voice-alert-dropdown') {
-        currentVoiceAlert = soundId;
-      } else if (dropdownId === 'tone-alert-dropdown') {
-        currentToneAlert = soundId;
-      }
+        currentAlertSound = soundId;
     }
     
     // Dropdown functions
@@ -1018,8 +1175,8 @@
 
     // Slider event listeners
     sensitivitySlider.addEventListener('input', function() {
-      updateSliderValue(this, sensitivityValue);
-      });
+      updateSliderValue(this, sensitivityValue, '');
+    });
 
     
 
@@ -1034,7 +1191,13 @@
 
     mirrorSwitch.addEventListener('change', applyMirrorEffect);
     
-    demoAlertBtn.addEventListener('click', showPostureAlert);
+    demoAlertBtn.addEventListener('click', () => {
+      testTriggered = true
+      showPostureAlert();
+      setTimeout(() => {
+        testTriggered = false
+      }, 2000); // time in milliseconds, e.g., 3000 = 3 seconds
+    });
     
     // Dropdown event listeners
     dropdowns.forEach(dropdown => {
@@ -1072,8 +1235,7 @@
     });
 
     // Initialize slider values
-    updateSliderValue(sensitivitySlider, sensitivityValue);
-    updateSliderValue(alertThresholdSlider, alertThresholdValue);
+    updateSliderValue(sensitivitySlider, sensitivityValue, '');
     updateSliderValue(alertDelaySlider, alertDelayValue, 's');
     updateSliderValue(volumeSlider, volumeValue);
 
