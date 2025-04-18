@@ -49,7 +49,7 @@ function activate(context) {
         chromeLauncher.launch({
             ignoreDefaultFlags: true,
             chromeFlags: [
-                `--app=file:///${path.join(context.extensionPath, 'camera', 'test.html').replace('\\', '/')}`,
+                `--app=file:///${path.join(context.extensionPath, 'camera', 'camera.html').replace('\\', '/')}`,
             ]
         });
     }));

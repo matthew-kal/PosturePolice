@@ -7,9 +7,9 @@ import cv2
 import mediapipe as mp
 from collections import deque
 import json
+
 # FastAPI app initialization
 app = FastAPI()
-
 
 # MediaPipe Pose and Face Mesh Setup
 mp_pose = mp.solutions.pose
@@ -19,16 +19,16 @@ face_tracker = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, r
 draw_utils = mp.solutions.drawing_utils
 
 # Sensitivity constants
-SENSITIVITY_CHIN = 0.125
+SENSITIVITY_CHIN = 0.125 
 SENSITIVITY_TURN = 0.03
-FRAME_BUFFER_SIZE = 25  # Number of frames to keep track of
-ALERT_THRESHOLD = 10    # Minimum slouching frames required to trigger alert
+FRAME_BUFFER_SIZE = 25 # Number of frames to
+ALERT_THRESHOLD = 17  # Minimum slouching frames required to trigger alert
 
 # Initialize a deque to keep track of the last 25 frames
 slouch_buffer = deque(maxlen=FRAME_BUFFER_SIZE)
 
 # Function to check slouch based on chin position
-def check_slouch(img):
+def check_slouch(img, intensity):
     pose_res = pose_detector.process(img)
     face_res = face_tracker.process(img)
 
@@ -42,18 +42,18 @@ def check_slouch(img):
 
     pose_landmarks = pose_res.pose_landmarks.landmark
     left_shoulder = np.array([pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x,
-                              pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y])
+                            pose_landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y])
 
     right_shoulder = np.array([pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x,
-                               pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y])
+                            pose_landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y])
 
     mid_shoulder = (left_shoulder + right_shoulder) / 2
-    mid_shoulder[1] -= SENSITIVITY_CHIN
+    mid_shoulder[1] -= SENSITIVITY_CHIN * intensity
 
     return chin[1] > mid_shoulder[1]
 
 # Function to check head turn based on facial landmark deviation
-def check_head_turn(img):
+def check_head_turn(img, intensity):
     face_data = face_tracker.process(img)
 
     if not face_data.multi_face_landmarks:
@@ -66,29 +66,48 @@ def check_head_turn(img):
     eye_center_x = (left_eye_x + right_eye_x) / 2
     deviation = abs(nose_x - eye_center_x)
 
-    return deviation > SENSITIVITY_TURN
+    return deviation > SENSITIVITY_TURN * intensity
 
 # WebSocket endpoint for real-time posture monitoring
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     print("Client connected")
-    
+
     try:
         while True:
             # Receive the image data from the client
-            data = await websocket.receive_text()
-            header, encoded = data.split(",", 1)
+            raw_data = await websocket.receive_text()
+
+            try:
+                data = json.loads(raw_data)  # turn JSON text into Python dict
+            except json.JSONDecodeError:
+                print("Failed to decode incoming message as JSON")
+                continue
+            
+            frame_str = data.get("data")
+
+            if not frame_str:
+                print("No frame data received")
+                continue
+
+            header, encoded = frame_str.split(",", 1)
             img_data = base64.b64decode(encoded)
             image = Image.open(BytesIO(img_data))
-
             # Convert the image to a format suitable for processing with OpenCV
-            img_rgb = np.array(image)
+            img_rgb = np.array(image)   
             img_rgb = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+            
+            intensity_str = data.get("sensitivity")
+            try:
+                intensity = float(intensity_str)
+            except ValueError:
+                intensity = 1.0
 
+            print(intensity)
             # Check slouching and head turn conditions
-            slouching_chin = check_slouch(img_rgb)
-            slouching_turn = check_head_turn(img_rgb)
+            slouching_chin = check_slouch(img_rgb, intensity)
+            slouching_turn = check_head_turn(img_rgb, intensity)
 
             # Record whether the current frame indicates slouching
             slouching = slouching_chin or slouching_turn
@@ -105,7 +124,7 @@ async def websocket_endpoint(websocket: WebSocket):
             message = {
                 "play_sound": bool(play_sound),
             }
-            await websocket.send_text(json.dumps(message))  # Use json.dumps() to convert the message to a string
+            await websocket.send_text(json.dumps(message)) # Use json.dumps() to convert the message to a string
 
 
     except Exception as e:
