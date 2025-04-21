@@ -817,6 +817,20 @@
               <span class="slider"></span>
             </label>
           </div>
+
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="sound-alerts">Head Tilt</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables slouching detection based on head tilt and alignment. Turn off if you frequently look away from the screen or use multiple monitors.</span></span>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="headTilt" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
         </div>
         
         <!-- Sound Settings -->
@@ -907,6 +921,7 @@
     const volumeSlider = document.getElementById('volume');
     const volumeValue = document.getElementById('volume-value');
     const mirrorSwitch = document.getElementById('mirror');
+    const tiltSwitch = document.getElementById('headTilt');
     const soundAlertsSwitch = document.getElementById('sound-alerts');
     const demoAlertBtn = document.getElementById('demo-alert');
     const postureAlert = document.getElementById('posture-alert');
@@ -1067,6 +1082,7 @@
           if (frameData.length > 100) {
             const message = {
               sensitivity: sensitivitySlider.value,
+              HeadTilt: tiltSwitch.checked,
               data: frameData, // include the base64 image inside JSON
             };
             socket.send(JSON.stringify(message)); // send as JSON string
