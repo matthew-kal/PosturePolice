@@ -3,12 +3,23 @@ import base64
 import numpy as np
 import cv2
 import mediapipe as mp
-from collections import deque
+from collections import deque, defaultdict
 import json
 import time
+import uuid
+import asyncio
 from contextlib import contextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ✅ safest for VSCode extension calls
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 mp_pose = mp.solutions.pose
 mp_face_mesh = mp.solutions.face_mesh
@@ -16,9 +27,12 @@ mp_face_mesh = mp.solutions.face_mesh
 SENSITIVITY_CHIN = 0.125 
 SENSITIVITY_TURN = 0.03
 FRAME_BUFFER_SIZE = 25
-ALERT_THRESHOLD = 17
+ALERT_THRESHOLD = 12  
 MAX_FRAME_SIZE = 1_000_000  
-MIN_FRAME_INTERVAL = 0.05  
+
+frame_queue = asyncio.Queue()
+user_connections = {}  # user_id: websocket
+user_buffers = defaultdict(lambda: deque(maxlen=FRAME_BUFFER_SIZE))
 
 @contextmanager
 def mediapipe_context():
@@ -74,75 +88,50 @@ def check_head_turn(img, intensity, face_tracker):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    print("Client connected")
-
-    slouch_buffer = deque(maxlen=FRAME_BUFFER_SIZE)
-    last_frame_time = 0
-
+    user_id = str(uuid.uuid4())
+    user_connections[user_id] = websocket
+    print(f"Client {user_id} connected")
     try:
-        with mediapipe_context() as (pose_detector, face_tracker):
-            while True:
-                raw_data = await websocket.receive_text()
-
-                try:
-                    data = json.loads(raw_data)
-                except json.JSONDecodeError:
-                    await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
-                    continue
-
+        while True:
+            raw_data = await websocket.receive_text()
+            try:
+                data = json.loads(raw_data)
                 frame_str = data.get("data")
-                if not frame_str:
-                    await websocket.send_text(json.dumps({"error": "Missing frame data"}))
+                if not frame_str or len(frame_str) > MAX_FRAME_SIZE:
                     continue
+                sensitivity = float(data.get("sensitivity", 1.0))
+                head_tilt = bool(data.get("HeadTilt", True))
+                await frame_queue.put((user_id, frame_str, sensitivity, head_tilt))
+            except:
+                continue
+    except:
+        print(f"Client {user_id} disconnected")
+    finally:
+        user_connections.pop(user_id, None)
 
-                try:
-                    header, encoded = frame_str.split(",", 1)
+@app.on_event("startup")
+async def start_worker():
+    asyncio.create_task(frame_processor())
 
-                    # ✅ Frame size limiter
-                    if len(encoded) > MAX_FRAME_SIZE:
-                        await websocket.send_text(json.dumps({"error": "Frame too large"}))
-                        continue
-
-                    # ✅ Frame rate limiter
-                    now = time.time()
-                    if now - last_frame_time < MIN_FRAME_INTERVAL:
-                        continue
-                    last_frame_time = now
-
-                    img_bytes = base64.b64decode(encoded)
-                    np_arr = np.frombuffer(img_bytes, np.uint8)
-                    img_rgb = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-                    if img_rgb is None:
-                        raise ValueError("Decoded image is None")
-                except Exception as e:
-                    await websocket.send_text(json.dumps({"error": f"Image decode failed: {str(e)}"}))
+async def frame_processor():
+    with mediapipe_context() as (pose_detector, face_tracker):
+        while True:
+            user_id, frame_str, intensity, head_tilt = await frame_queue.get()
+            try:
+                header, encoded = frame_str.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                np_arr = np.frombuffer(img_bytes, np.uint8)
+                img_rgb = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                if img_rgb is None:
                     continue
-
-                try:
-                    intensity = float(data.get("sensitivity", 1.0))
-                except ValueError:
-                    intensity = 1.0
-
-                try:
-                    head_tilt = bool(data.get("HeadTilt", True))
-                except ValueError: 
-                    head_tilt = True 
-
-
                 slouch_chin = check_slouch(img_rgb, intensity, pose_detector, face_tracker)
                 slouch_turn = check_head_turn(img_rgb, intensity, face_tracker)
                 slouching = (slouch_chin or slouch_turn) if head_tilt else slouch_chin
 
-                slouch_buffer.append(slouching)
-                play_sound = sum(slouch_buffer) >= ALERT_THRESHOLD
+                user_buffers[user_id].append(slouching)
+                play_sound = sum(user_buffers[user_id]) >= ALERT_THRESHOLD
 
-                await websocket.send_text(json.dumps({"play_sound": bool(play_sound)}))
-
-    except Exception as e:
-        print("WebSocket error:", e)
-    finally:
-        print("Client disconnected")
-        await websocket.close()
-
-# uvicorn api:app --host 0.0.0.0 --port 8000
+                if user_id in user_connections:
+                    await user_connections[user_id].send_text(json.dumps({"play_sound": bool(play_sound)}))
+            except Exception as e:
+                print(f"Error processing frame for user {user_id}: {e}")

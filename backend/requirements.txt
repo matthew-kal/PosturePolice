@@ -1,8 +1,8 @@
 fastapi
 uvicorn
-opencv-python
+gunicorn
 mediapipe
-websockets
+opencv-python
 numpy
-Pillow
-pygame
+pydantic         
+protobuf        
