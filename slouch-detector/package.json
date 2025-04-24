@@ -14,12 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "slouch-detector.helloWorld",
-        "title": "Hello World"
-      },
-      {
-        "command": "slouch-detector.openCamera",
-        "title": "Camera"
+        "command": "PosturePolice.startApp",
+        "title": "Posture Police: Start App"
       }
     ]
   },
