@@ -943,7 +943,7 @@
     
     // Sound settings
     let currentAlertSound = 'bell'; // Default alert sound
-    let soundPlaying = false;
+    let alertSoundInterval = null; // 🔹 Add this here
     let soundTimeout = 3000; // 1 second timeout for sound
     // Audio elements for sound previews
     const audioElements = {
@@ -1104,24 +1104,27 @@
     }
     
     function showPostureAlert() {
-        postureAlert.style.display = 'flex';   
-        // Play sound if enabled
-        if (!soundPlaying) {
-            // Mark the sound as playing
-            soundPlaying = true;
-            // Play the selected sound
-            if (soundAlertsSwitch.checked) {
-                playAlertSound(currentAlertSound)
-                 // When the sound finishes playing
-                setTimeout(() => {
-                    soundPlaying = false;
-                }, soundTimeout);
-            } 
-        }
+      postureAlert.style.display = 'flex';
+
+      if (!alertSoundInterval && soundAlertsSwitch.checked) {
+        // Start interval loop to play sound
+        //playAlertSound(currentAlertSound); // Optional: play immediately
+        alertSoundInterval = setInterval(() => {
+          if (soundAlertsSwitch.checked) {
+            playAlertSound(currentAlertSound);
+          }
+        }, soundTimeout);
+      }
     }
 
     function hidePostureAlert() {
       postureAlert.style.display = 'none';
+
+      // Stop sound loop
+      if (alertSoundInterval) {
+        clearInterval(alertSoundInterval);
+        alertSoundInterval = null;
+      }
     }
     
     // Sound functions
@@ -1196,9 +1199,13 @@
 
     
 
-    alertDelaySlider.addEventListener('input', function() {
+    alertDelaySlider.addEventListener('input', function () {
       updateSliderValue(this, alertDelayValue, 's');
       soundTimeout = this.value * 1000;
+      if (alertSoundInterval) {
+        clearInterval(alertSoundInterval);
+        alertSoundInterval = null;
+      }
     });
 
     volumeSlider.addEventListener('input', function() {
