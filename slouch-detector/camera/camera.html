@@ -928,7 +928,7 @@
     
     // Dropdown elements
     const dropdowns = document.querySelectorAll('.dropdown');
-    const policeSoundDropdown = document.getElementById('police-sound-dropdown');
+
     
     // Sound preview buttons
     const soundPreviewButtons = document.querySelectorAll('.btn-icon');
@@ -939,12 +939,12 @@
     // Camera state
     let cameraActive = false;
     let stream = null;
-    let postureCheckInterval = null;
     
     // Sound settings
     let currentAlertSound = 'bell'; // Default alert sound
-    let alertSoundInterval = null; // 🔹 Add this here
-    let soundTimeout = 3000; // 1 second timeout for sound
+    let alertSoundInterval = null; 
+    let soundTimeout = 3000; // 3 second timeout for sound
+
     // Audio elements for sound previews
     const audioElements = {
       'bell': new Audio('./audio/bell.mp3'),
