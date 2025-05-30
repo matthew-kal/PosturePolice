@@ -701,7 +701,7 @@
           </div>
           <div class="card-content">
             <p>
-              The Posture Police application monitors your sitting position and alerts you when your posture needs correction.
+              The Posture Police application monitors your sitting position and alerts you in real time when your posture needs correction.
               To get started:
             </p>
             <ol>
@@ -711,8 +711,7 @@
               <li>Stay healthy with proper ergonomic positioning</li>
             </ol>
             <p class="text-muted">
-              Note: Your camera feed is not stored or transmitted anywhere.
-              This application only processes your posture data locally for your health benefit.
+              Note: Your camera feed is never recorded, stored, or transmitted. All posture analysis is performed entirely on your device to protect your privacy and support your well-being.
             </p>
             <p class="text-muted" style="margin-top: 2rem; text-align: center; width: fit-content; margin-left: auto; margin-right: auto;">
               Made by<br>
@@ -906,6 +905,9 @@
       </div>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
   <script>
     // DOM Elements
@@ -935,13 +937,7 @@
     // Sound preview buttons
     const soundPreviewButtons = document.querySelectorAll('.btn-icon');
 
-    // Socket
-    let socket
 
-    // Camera state
-    let cameraActive = false;
-    let stream = null;
-    
     // Sound settings
     let currentAlertSound = 'bell'; // Default alert sound
     let alertSoundInterval = null; 
@@ -960,41 +956,91 @@
     // Test Boolean
     let testTriggered = false
     // Functions
-    function startCamera() {
-        navigator.mediaDevices.getUserMedia({ video: true })
-        .then((mediaStream) => {
-            cameraVideo.srcObject = mediaStream;
-            cameraVideo.style.display = 'block';
-            cameraPlaceholder.style.display = 'none';
-            stopCameraBtn.style.display = 'block';
-            cameraActive = true;
-            cameraActiveSwitch.checked = true;
-            stream = mediaStream;
 
-            // Apply mirror effect if enabled
-            applyMirrorEffect();
-            // Start posture monitoring (WebSocket and frame streaming)
-            startPostureMonitoring(cameraVideo);
-            })
-        .catch((err) => {
-        console.error('Error accessing camera:', err);
-        alert('Could not access camera. Please check permissions.');
-        });
+    //MediaPipe Globals
+    let camera = null;
+    let pose = null;
+    let faceMesh = null;
+    let currentFaceLandmarks = null;
+    const FRAME_BUFFER_SIZE = 25;
+    const ALERT_THRESHOLD = 12;
+    const slouchBuffer = new Array(FRAME_BUFFER_SIZE).fill(false);
+
+    // Pose + FaceMesh landmark indices
+    const NOSE = 1;
+    const CHIN = 152;
+    const LEFT_SHOULDER = 11;
+    const RIGHT_SHOULDER = 12;
+    const LEFT_EYE = 33;
+    const RIGHT_EYE = 263;
+
+
+
+    function startCamera() {
+        cameraVideo.style.display = 'block';
+        cameraPlaceholder.style.display = 'none';
+        stopCameraBtn.style.display = 'block';
+        cameraActiveSwitch.checked = true;
+
+        applyMirrorEffect();
+
+        if (!camera) {
+            // === Initialize Pose (once)
+            pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+            });
+
+            pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+            });
+
+            pose.onResults(onPoseResults);
+
+            // === Initialize FaceMesh (once)
+            faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+            });
+
+            faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+            });
+
+            faceMesh.onResults(onFaceResults);
+
+            // === Initialize camera with both pose and faceMesh
+            camera = new Camera(cameraVideo, {
+            onFrame: async () => {
+                await pose.send({ image: cameraVideo });
+                await faceMesh.send({ image: cameraVideo });
+            },
+            width: 640,
+            height: 480
+            });
+        }
+
+        camera.start();
     }
 
+
+
     function stopCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
-      cameraVideo.style.display = 'none';
-      cameraPlaceholder.style.display = 'flex';
-      stopCameraBtn.style.display = 'none';
-      cameraActive = false;
-      cameraActiveSwitch.checked = false;
-      hidePostureAlert();
-      // Stop posture monitoring
-      stopPostureMonitoring();
+        if (camera) {
+            camera.stop();
+        }
+
+        cameraVideo.style.display = 'none';
+        cameraPlaceholder.style.display = 'flex';
+        stopCameraBtn.style.display = 'none';
+        cameraActiveSwitch.checked = false;
+        hidePostureAlert();
     }
 
     function switchTab(tabId) {
@@ -1028,83 +1074,109 @@
         cameraVideo.style.transform = 'scaleX(1)';
       }
     }
-    
-    // Simulated posture monitoring
+
+
     function startPostureMonitoring(video) {
-        // Open WebSocket connection
-        socket = new WebSocket("ws://localhost:8000/ws");
-  
-        socket.onopen = () => {
-            console.log("WebSocket connected");
-            startStreaming(video, socket); // Start sending frames after WebSocket is open
-        };
+        pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+        });
 
-        socket.onerror = (error) => {
-            console.error("WebSocket Error:", error);
-        };
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
 
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                const slouching = data.play_sound;
+        pose.onResults(onPoseResults);
 
-                // Play sound if slouching detected
-                if (slouching) {
-                    showPostureAlert();
-                } else {
-                    if (!testTriggered) {
-                        hidePostureAlert();
-                    }
-                }
-            } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
-            }
-            };
-        }   
-    
-    function startStreaming(video, socket) {
-      
-        if (!socket || socket.readyState !== WebSocket.OPEN) {
-            console.error("WebSocket is not open yet.");
-            return;
-        }
+        const camera = new Camera(video, {
+            onFrame: async () => {
+            await pose.send({ image: video });
+            },
+            width: 640,
+            height: 480
+        });
 
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        function captureFrame() {
-        if (socket.readyState !== WebSocket.OPEN) return;
-
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-          const frameData = canvas.toDataURL("image/jpeg", 0.8);
-
-          if (frameData.length > 100) {
-            const message = {
-              sensitivity: sensitivitySlider.value,
-              HeadTilt: tiltSwitch.checked,
-              data: frameData, // include the base64 image inside JSON
-            };
-            socket.send(JSON.stringify(message)); // send as JSON string
-          } else {
-            console.error("Empty frame data detected, skipping send.");
-          }
-
-          setTimeout(captureFrame, 100); // Capture next frame after 100ms
-        }
-        captureFrame();
+        camera.start();
     }
-
+    
     function stopPostureMonitoring() {
-        // Close WebSocket connection
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.close();
-            console.log("WebSocket closed");
+        if (pose) {
+            pose.close();
         }
     }
-    
+
+
+    function onFaceResults(results) {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            currentFaceLandmarks = results.multiFaceLandmarks[0];
+        } else {
+            currentFaceLandmarks = null;
+        }
+    }
+
+    function onPoseResults(results) {
+        const poseLandmarks = results.poseLandmarks;
+        if (!poseLandmarks) return;
+
+        const sensitivity = parseFloat(sensitivitySlider.value);
+        const headTiltEnabled = tiltSwitch.checked;
+
+        let slouchChin = false;
+        let slouchTurn = false;
+
+        // === CHIN DROPPING CHECK ===
+        const leftShoulder = poseLandmarks[LEFT_SHOULDER];
+        const rightShoulder = poseLandmarks[RIGHT_SHOULDER];
+
+        if (leftShoulder && rightShoulder) {
+            const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+
+            let chinY = null;
+            if (currentFaceLandmarks && currentFaceLandmarks[CHIN]) {
+            chinY = currentFaceLandmarks[CHIN].y;
+            } else if (poseLandmarks[NOSE]) {
+            chinY = poseLandmarks[NOSE].y; // fallback
+            }
+
+            if (chinY !== null) {
+            const adjustedShoulderY = shoulderMidY - (0.125 * sensitivity);
+            slouchChin = chinY > adjustedShoulderY;
+            }
+        }
+
+        // === HEAD TURNING CHECK ===
+        if (headTiltEnabled && currentFaceLandmarks) {
+            const nose = currentFaceLandmarks[NOSE];
+            const leftEye = currentFaceLandmarks[LEFT_EYE];
+            const rightEye = currentFaceLandmarks[RIGHT_EYE];
+
+            if (nose && leftEye && rightEye) {
+            const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+            const deviation = Math.abs(nose.x - eyeCenterX);
+            slouchTurn = deviation > (0.03 * sensitivity);
+            }
+        }
+
+        // === FINAL POSTURE EVALUATION ===
+        const isSlouching = headTiltEnabled ? (slouchChin || slouchTurn) : slouchChin;
+
+        slouchBuffer.shift();
+        slouchBuffer.push(isSlouching);
+
+        const playSound = slouchBuffer.filter(Boolean).length >= ALERT_THRESHOLD;
+
+        if (playSound) {
+            showPostureAlert();
+        } else if (!testTriggered) {
+            hidePostureAlert();
+        }
+    }
+
+
     function showPostureAlert() {
       postureAlert.style.display = 'flex';
 
@@ -1219,6 +1291,9 @@
     demoAlertBtn.addEventListener('click', () => {
       testTriggered = true
       showPostureAlert();
+      if (soundAlertsSwitch.checked) {
+        playAlertSound(currentAlertSound); // 👈 Force play once for the demo
+      }
       setTimeout(() => {
         testTriggered = false
       }, 2000); // time in milliseconds, e.g., 3000 = 3 seconds
