@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Posture Police - Camera Monitor</title>
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      background-color: #0a0a0a;
+      color: #ffffff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Main layout */
+    .container {
+      display: flex;
+      height: 100vh;
+      background: linear-gradient(135deg, #0a0a0a 0%, #101c2e 50%, #1a1a1a 100%);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .camera-container {
+      width: 100%;
+      max-width: 768px;
+      aspect-ratio: 16/9;
+      background-color: #0f0f0f;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid #1e3a8a;
+      box-shadow: 0 0 20px rgba(30, 58, 138, 0.5), 0 0 40px rgba(220, 38, 38, 0.2);
+    }
+
+    .camera-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: linear-gradient(45deg, #0f172a 0%, #1e3a8a 100%);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Police badge overlay */
+    .badge-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 60px;
+      height: 60px;
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+      width: 320px;
+      border-left: 1px solid #1e3a8a;
+      background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative; /* Add this */
+      overflow: visible; /* Ensure tooltips can overflow */
+      overflow-y: auto; /* ← enables vertical scrolling */
+      overflow-x: hidden; /* ← prevents sideways scroll */
+    }
+
+    /* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 4px; /* Slim scrollbar */
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: #2563eb; /* Slightly brighter blue on hover */
+}
+    /* Tabs */
+    .tabs-header {
+      border-bottom: 1px solid #1e3a8a;
+      padding: 0.5rem 1rem;
+      background-color: rgba(30, 58, 138, 0.2);
+    }
+
+    .tabs-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      background-color: #0f172a;
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+      border: 1px solid #1e3a8a;
+    }
+
+    .tab-trigger {
+      padding: 0.5rem;
+      text-align: center;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: background-color 0.2s;
+      color: #94a3b8;
+    }
+
+    .tab-trigger.active {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow: visible;
+      padding: 1rem;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Card styles */
+    .card {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      border: 1px solid #1e3a8a;
+    }
+
+    .card-header {
+      padding: 1.5rem 1.5rem 0;
+      border-bottom: 1px solid rgba(30, 58, 138, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+
+    .card-description {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-content {
+      padding: 1.5rem;
+    }
+
+    /* Button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.25rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+    }
+
+    .btn-outline {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #1e3a8a;
+      color: #ffffff;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-outline:hover {
+      background: rgba(30, 58, 138, 0.3);
+      border-color: #3b82f6;
+    }
+
+    .btn-stop {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+      border: none;
+    }
+
+    .btn-stop:hover {
+      background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%);
+    }
+
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+
+    .btn-icon:hover {
+      background: rgba(59, 130, 246, 0.3);
+    }
+
+    /* Settings styles */
+    .settings-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .settings-title {
+      font-size: 1.125rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      border-bottom: 1px solid #1e3a8a;
+      padding-bottom: 0.5rem;
+    }
+
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .slider-settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .settings-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #e2e8f0;
+    }
+
+    .settings-value {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-left: 0.25rem;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #1f2937;
+      transition: .4s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    /* Range slider */
+    .range-slider {
+      width: 100%;
+      margin-bottom: 1rem;
+      appearance: none;
+      -webkit-appearance: none;
+      height: 6px;
+      background: #1f2937;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .range-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+
+    .range-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+
+    /* List styles */
+    ol {
+      padding-left: 1.5rem;
+      margin: 1rem 0;
+      color: #e2e8f0;
+    }
+
+    ol li {
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+
+    .text-muted {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+    }
+
+    /* Icons */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Alert overlay */
+    .posture-alert {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(220, 38, 38, 0.3);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      animation: pulse 2s infinite;
+      pointer-events: none;
+    }
+
+    .posture-alert-message {
+      background: rgba(15, 23, 42, 0.9);
+      border: 2px solid #dc2626;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      font-weight: bold;
+      font-size: 1.5rem;
+      color: white;
+      text-shadow: 0 0 10px rgba(220, 38, 38, 0.7);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(220, 38, 38, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+      }
+    }
+
+    /* Logo */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .logo-icon {
+      width: 24px;
+      height: 24px;
+      color: #3b82f6;
+    }
+
+    .logo-text {
+      font-weight: bold;
+      font-size: 1.25rem;
+      background: linear-gradient(90deg, #3b82f6, #dc2626);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Dropdown styles */
+    .dropdown {
+      position: relative;
+      width: 70%;
+    }
+
+    .dropdown-select {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.25rem;
+      color: #e2e8f0;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .dropdown-select:hover {
+      border-color: #3b82f6;
+      background: #283548;
+    }
+
+    .dropdown-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+
+    .dropdown-options {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin-top: 0.25rem;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.25rem;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: all 0.2s;
+      pointer-events: none;
+    }
+
+    .dropdown.open .dropdown-options {
+      max-height: 200px;
+      opacity: 1;
+      pointer-events: auto;
+      overflow-y: auto;
+    }
+
+    .dropdown-option {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dropdown-option:hover {
+      background: #283548;
+    }
+
+    .dropdown-option.selected {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    /* Sound preview button */
+    .sound-preview {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Sound categories */
+    .sound-category {
+      margin-bottom: 1rem;
+      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+      padding-bottom: 0.5rem;
+    }
+
+    .sound-category-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Info button styles */
+    .info-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      cursor: pointer;
+      margin-left: 12px;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .info-button:hover {
+      background: rgba(59, 130, 246, 0.3);
+    }
+
+    .info-button::after {
+      content: "i";
+      font-size: 10px;
+      font-style: italic;
+      font-weight: bold;
+      color: #3b82f6;
+    }
+
+    /* Tooltip styles */
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      background-color: #0f172a;
+      color: #e2e8f0;
+      text-align: left;
+      border-radius: 6px;
+      padding: 10px;
+      position: absolute;
+      z-index: 9999;
+      bottom:  180%; /* position above the button */
+      left: 50%; /* center horizontally */
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+      line-height: 1.5;
+      border: 1px solid #1e3a8a;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      white-space: normal;
+      word-wrap: break-word;
+      min-width: 150px;
+      max-width: 220px;
+      }
+
+    .tooltip .tooltip-text::after {
+      left: 50%;
+      transform: translateX(-50%);
+      content: "";
+      position: absolute;
+      top: 100%; /* below the box */
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid #1e3a8a;
+    }
+
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* For settings with labels */
+    .settings-label-container {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Main content area -->
+    <div class="main-content">
+      <div class="camera-container">
+        <div class="camera-placeholder" id="camera-placeholder">
+          <button class="btn btn-primary" id="start-camera">Start Posture Monitoring</button>
+        </div>
+        <video id="camera-video" autoplay playsinline style="display: none;"></video>
+        <button class="btn btn-stop" id="stop-camera" style="display: none;">Stop Monitoring</button>
+        
+        <!-- Police badge overlay -->
+        <svg class="badge-overlay" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L14.5 9H22L16 13.5L18.5 20.5L12 16L5.5 20.5L8 13.5L2 9H9.5L12 2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="1"/>
+          <circle cx="12" cy="11" r="3" fill="#dc2626" stroke="#ffffff" stroke-width="0.5"/>
+        </svg>
+        
+        <!-- Posture alert overlay -->
+        <div class="posture-alert" id="posture-alert">
+          <div class="posture-alert-message">FIX YOUR POSTURE!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="sidebar">
+      <div class="tabs-header">
+        <div class="tabs-list">
+          <div class="tab-trigger active" data-tab="welcome">
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Welcome
+          </div>
+          <div class="tab-trigger" data-tab="settings">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Settings
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content active" id="welcome-tab">
+        <div class="card">
+          <div class="card-header">
+            <div class="logo">
+              <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L14.5 9H22L16 13.5L18.5 20.5L12 16L5.5 20.5L8 13.5L2 9H9.5L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="logo-text">POSTURE POLICE</span>
+            </div>
+            <h2 class="card-title">Maintain Perfect Posture</h2>
+            <div class="card-description">
+              Your personal posture monitoring system
+            </div>
+          </div>
+          <div class="card-content">
+            <p>
+              The Posture Police application monitors your sitting position and alerts you in real time when your posture needs correction.
+              To get started:
+            </p>
+            <ol>
+              <li>Click the "Start Posture Monitoring" button in the main view</li>
+              <li>Adjust your monitoring settings in the Settings tab</li>
+              <li>Receive alerts when your posture needs correction</li>
+              <li>Stay healthy with proper ergonomic positioning</li>
+            </ol>
+            <p class="text-muted">
+              Note: Your camera feed is never recorded, stored, or transmitted. All posture analysis is performed entirely on your device to protect your privacy and support your well-being.
+            </p>
+            <p class="text-muted" style="margin-top: 2rem; text-align: center; width: fit-content; margin-left: auto; margin-right: auto;">
+              Made by<br>
+              <span style="white-space: nowrap;">Matthew Kalender and Joffre Loor</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="settings-tab">
+        <div class="settings-group">
+          <h3 class="settings-title">Monitoring Settings</h3>
+          
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="camera-active">Camera Active</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables or disables camera. When active, your camera will be used to analyze your posture.</span></span>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="camera-active">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="slider-settings-item">
+            <div>
+              <div class="settings-label-container">
+                <div class="label-value-pair">
+                  <label class="settings-label" for="sensitivity">Sensitivity</label>
+                  <span class="settings-value" id="sensitivity-value">1.0</span>
+                </div>
+                <div class="tooltip">
+                  <span class="info-button">
+                    <span class="tooltip-text">Adjusts how sensitive the posture detection is. Higher values will detect smaller posture changes, while lower values are more forgiving.</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <input type="range" id="sensitivity" class="range-slider" min="0.85" max="1.15" value="1.0" step="0.01">
+
+          <div class="slider-settings-item">
+            <div class="settings-label-container">
+              <div class="label-value-pair">
+                <label class="settings-label" for="alert-delay">Alert Delay (seconds)</label>
+                <span class="settings-value" id="alert-delay-value">3s</span>
+              </div>
+              <div class="tooltip">
+                <span class="info-button">
+                  <span class="tooltip-text">
+                    Sets how long the system waits before alerting you about poor posture.
+                    A longer delay prevents alerts for momentary posture changes.
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <input type="range" id="alert-delay" class="range-slider" min="1" max="10" value="3">
+
+
+          <div class="slider-settings-item">
+            <div class="settings-label-container">
+              <div class="label-value-pair">
+                <label class="settings-label" for="volume">Volume</label>
+                <span class="settings-value" id="volume-value">50%</span>
+              </div>
+              <div class="tooltip">
+                <span class="info-button">
+                  <span class="tooltip-text">
+                    Controls the volume of alert sounds. Set to 0% to have visual alerts only without sound.
+                  </span>
+               </span>
+              </div>
+            </div>
+          </div>
+
+          <input type="range" id="volume" class="range-slider" min="0" max="100" value="50">
+
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="mirror">Mirror Image</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Flips the camera horizontally to show a mirror image, which may feel more natural when viewing yourself.</span></span>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mirror" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="sound-alerts">Sound Alerts</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables audio notifications when poor posture is detected. Turn off for silent visual alerts only.</span></span>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="sound-alerts" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="sound-alerts">Head Tilt</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Enables slouching detection based on head tilt and alignment. Turn off if you frequently look away from the screen or use multiple monitors.</span></span>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="headTilt" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+        </div>
+        
+        <!-- Sound Settings -->
+        <div class="settings-group">
+          <h3 class="settings-title">Alert Sounds</h3>
+          
+          <!-- Police Sounds Category -->
+          <div class="sound-category">
+            <div class="sound-category-title"></div>
+            <div class="settings-item">
+              <div class="settings-label-container">
+                <label class="settings-label" for="police-sound">Alerts</label>
+                <div class="tooltip">
+                  <span class="info-button"><span class="tooltip-text">Select the sound that plays when poor posture is detected. You can preview each sound by clicking the speaker icon.</span></span>
+                </div>
+              </div>
+              <div class="dropdown" id="police-sound-dropdown">
+                <div class="dropdown-select" id="police-sound-select">
+                  <span>Bell</span>
+                  <svg class="icon" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+                <div class="dropdown-options">
+                  <div class="dropdown-option selected" data-value="bell">
+                    <span>Bell</span>
+                    <button class="btn-icon" data-sound="bell">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="radio">
+                    <span>Radio</span>
+                    <button class="btn-icon" data-sound="radio">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="sigh">
+                    <span>Sigh</span>
+                    <button class="btn-icon" data-sound="sigh">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="siren">
+                    <span>Siren</span>
+                    <button class="btn-icon" data-sound="siren">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                  <div class="dropdown-option" data-value="beep">
+                    <span>Beep</span>
+                    <button class="btn-icon" data-sound="beep">
+                      <img class="icon" src="volume-icon.png" alt="icon">
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Test Alert Button -->
+          <div class="settings-item">
+            <div class="settings-label-container">
+              <label class="settings-label" for="demo-alert">Test Alert</label>
+              <div class="tooltip">
+                <span class="info-button"><span class="tooltip-text">Triggers a demonstration of the posture alert with the current sound and volume settings.</span></span>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="demo-alert">Trigger Demo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    // DOM Elements
+    const startCameraBtn = document.getElementById('start-camera');
+    const stopCameraBtn = document.getElementById('stop-camera');
+    const cameraVideo = document.getElementById('camera-video');
+    const cameraPlaceholder = document.getElementById('camera-placeholder');
+    const cameraActiveSwitch = document.getElementById('camera-active');
+    const tabTriggers = document.querySelectorAll('.tab-trigger');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const sensitivitySlider = document.getElementById('sensitivity');
+    const alertDelaySlider = document.getElementById('alert-delay');
+    const sensitivityValue = document.getElementById('sensitivity-value');
+    const alertDelayValue = document.getElementById('alert-delay-value');
+    const volumeSlider = document.getElementById('volume');
+    const volumeValue = document.getElementById('volume-value');
+    const mirrorSwitch = document.getElementById('mirror');
+    const tiltSwitch = document.getElementById('headTilt');
+    const soundAlertsSwitch = document.getElementById('sound-alerts');
+    const demoAlertBtn = document.getElementById('demo-alert');
+    const postureAlert = document.getElementById('posture-alert');
+    
+    // Dropdown elements
+    const dropdowns = document.querySelectorAll('.dropdown');
+
+    
+    // Sound preview buttons
+    const soundPreviewButtons = document.querySelectorAll('.btn-icon');
+
+
+    // Sound settings
+    let currentAlertSound = 'bell'; // Default alert sound
+    let alertSoundInterval = null; 
+    let soundTimeout = 3000; // 3 second timeout for sound
+
+    // Audio elements for sound previews
+    const audioElements = {
+      'bell': new Audio('./audio/bell.mp3'),
+      'radio': new Audio('./audio/radio.mp3'),
+      'sigh': new Audio('./audio/sigh.mp3'),
+      'beep': new Audio('./audio/beep.mp3'),
+      'siren': new Audio('./audio/siren.mp3')
+    };
+
+
+    // Test Boolean
+    let testTriggered = false
+    // Functions
+
+    //MediaPipe Globals
+    let camera = null;
+    let pose = null;
+    let faceMesh = null;
+    let currentFaceLandmarks = null;
+    const FRAME_BUFFER_SIZE = 25;
+    const ALERT_THRESHOLD = 12;
+    const slouchBuffer = new Array(FRAME_BUFFER_SIZE).fill(false);
+
+    // Pose + FaceMesh landmark indices
+    const NOSE = 1;
+    const CHIN = 152;
+    const LEFT_SHOULDER = 11;
+    const RIGHT_SHOULDER = 12;
+    const LEFT_EYE = 33;
+    const RIGHT_EYE = 263;
+
+
+
+    function startCamera() {
+        cameraVideo.style.display = 'block';
+        cameraPlaceholder.style.display = 'none';
+        stopCameraBtn.style.display = 'block';
+        cameraActiveSwitch.checked = true;
+
+        applyMirrorEffect();
+
+        if (!camera) {
+            // === Initialize Pose (once)
+            pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+            });
+
+            pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+            });
+
+            pose.onResults(onPoseResults);
+
+            // === Initialize FaceMesh (once)
+            faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+            });
+
+            faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+            });
+
+            faceMesh.onResults(onFaceResults);
+
+            // === Initialize camera with both pose and faceMesh
+            camera = new Camera(cameraVideo, {
+            onFrame: async () => {
+                await pose.send({ image: cameraVideo });
+                await faceMesh.send({ image: cameraVideo });
+            },
+            width: 640,
+            height: 480
+            });
+        }
+
+        camera.start();
+    }
+
+
+
+    function stopCamera() {
+        if (camera) {
+            camera.stop();
+        }
+
+        cameraVideo.style.display = 'none';
+        cameraPlaceholder.style.display = 'flex';
+        stopCameraBtn.style.display = 'none';
+        cameraActiveSwitch.checked = false;
+        hidePostureAlert();
+    }
+
+    function switchTab(tabId) {
+      // Update tab triggers
+      tabTriggers.forEach(trigger => {
+        if (trigger.dataset.tab === tabId) {
+          trigger.classList.add('active');
+        } else {
+          trigger.classList.remove('active');
+        }
+      });
+
+      // Update tab contents
+      tabContents.forEach(content => {
+        if (content.id === `${tabId}-tab`) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    }
+
+    function updateSliderValue(slider, valueElement, suffix = '%') {
+      valueElement.textContent = `${slider.value}${suffix}`;
+    }
+
+    function applyMirrorEffect() {
+      if (mirrorSwitch.checked) {
+        cameraVideo.style.transform = 'scaleX(-1)';
+      } else {
+        cameraVideo.style.transform = 'scaleX(1)';
+      }
+    }
+
+
+    function startPostureMonitoring(video) {
+        pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+        });
+
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        pose.onResults(onPoseResults);
+
+        const camera = new Camera(video, {
+            onFrame: async () => {
+            await pose.send({ image: video });
+            },
+            width: 640,
+            height: 480
+        });
+
+        camera.start();
+    }
+    
+    function stopPostureMonitoring() {
+        if (pose) {
+            pose.close();
+        }
+    }
+
+
+    function onFaceResults(results) {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            currentFaceLandmarks = results.multiFaceLandmarks[0];
+        } else {
+            currentFaceLandmarks = null;
+        }
+    }
+
+    function onPoseResults(results) {
+        const poseLandmarks = results.poseLandmarks;
+        if (!poseLandmarks) return;
+
+        const sensitivity = parseFloat(sensitivitySlider.value);
+        const headTiltEnabled = tiltSwitch.checked;
+
+        let slouchChin = false;
+        let slouchTurn = false;
+
+        // === CHIN DROPPING CHECK ===
+        const leftShoulder = poseLandmarks[LEFT_SHOULDER];
+        const rightShoulder = poseLandmarks[RIGHT_SHOULDER];
+
+        if (leftShoulder && rightShoulder) {
+            const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+
+            let chinY = null;
+            if (currentFaceLandmarks && currentFaceLandmarks[CHIN]) {
+            chinY = currentFaceLandmarks[CHIN].y;
+            } else if (poseLandmarks[NOSE]) {
+            chinY = poseLandmarks[NOSE].y; // fallback
+            }
+
+            if (chinY !== null) {
+            const adjustedShoulderY = shoulderMidY - (0.125 * sensitivity);
+            slouchChin = chinY > adjustedShoulderY;
+            }
+        }
+
+        // === HEAD TURNING CHECK ===
+        if (headTiltEnabled && currentFaceLandmarks) {
+            const nose = currentFaceLandmarks[NOSE];
+            const leftEye = currentFaceLandmarks[LEFT_EYE];
+            const rightEye = currentFaceLandmarks[RIGHT_EYE];
+
+            if (nose && leftEye && rightEye) {
+            const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+            const deviation = Math.abs(nose.x - eyeCenterX);
+            slouchTurn = deviation > (0.03 * sensitivity);
+            }
+        }
+
+        // === FINAL POSTURE EVALUATION ===
+        const isSlouching = headTiltEnabled ? (slouchChin || slouchTurn) : slouchChin;
+
+        slouchBuffer.shift();
+        slouchBuffer.push(isSlouching);
+
+        const playSound = slouchBuffer.filter(Boolean).length >= ALERT_THRESHOLD;
+
+        if (playSound) {
+            showPostureAlert();
+        } else if (!testTriggered) {
+            hidePostureAlert();
+        }
+    }
+
+
+    function showPostureAlert() {
+      postureAlert.style.display = 'flex';
+
+      if (!alertSoundInterval && soundAlertsSwitch.checked) {
+        // Start interval loop to play sound
+        //playAlertSound(currentAlertSound); // Optional: play immediately
+        alertSoundInterval = setInterval(() => {
+          if (soundAlertsSwitch.checked) {
+            playAlertSound(currentAlertSound);
+          }
+        }, soundTimeout);
+      }
+    }
+
+    function hidePostureAlert() {
+      postureAlert.style.display = 'none';
+
+      // Stop sound loop
+      if (alertSoundInterval) {
+        clearInterval(alertSoundInterval);
+        alertSoundInterval = null;
+      }
+    }
+    
+    // Sound functions
+    function playAlertSound(soundId) {
+      const audio = audioElements[soundId];
+    
+      // Reset audio
+      audio.pause();
+      audio.currentTime = 0;
+      
+      // Set volume to current slider value
+      audio.volume = volumeSlider.value / 100;
+      console.log("Volume at play time:", audio.volume);
+      // Play
+      audio.play().catch(err => {
+        console.error('Audio playback failed:', err);
+      });
+    }
+    
+    function updateSelectedSound(dropdownId, soundId) {
+      const dropdown = document.getElementById(dropdownId);
+      const selectElement = dropdown.querySelector('.dropdown-select span');
+      
+      // Update the dropdown display
+      dropdown.querySelectorAll('.dropdown-option').forEach(option => {
+        if (option.dataset.value === soundId) {
+          option.classList.add('selected');
+          selectElement.textContent = option.querySelector('span').textContent;
+        } else {
+          option.classList.remove('selected');
+        }
+      });
+      
+        currentAlertSound = soundId;
+    }
+    
+    // Dropdown functions
+    function toggleDropdown(dropdown) {
+      // Close all other dropdowns
+      dropdowns.forEach(d => {
+        if (d !== dropdown) {
+          d.classList.remove('open');
+        }
+      });
+      
+      // Toggle the current dropdown
+      dropdown.classList.toggle('open');
+    }
+
+    // Event Listeners
+    startCameraBtn.addEventListener('click', startCamera);
+    stopCameraBtn.addEventListener('click', stopCamera);
+    
+    cameraActiveSwitch.addEventListener('change', function() {
+      if (this.checked) {
+        startCamera();
+      } else {
+        stopCamera();
+      }
+    });
+
+    tabTriggers.forEach(trigger => {
+      trigger.addEventListener('click', function() {
+        switchTab(this.dataset.tab);
+      });
+    });
+
+    // Slider event listeners
+    sensitivitySlider.addEventListener('input', function() {
+      updateSliderValue(this, sensitivityValue, '');
+    });
+
+    
+
+    alertDelaySlider.addEventListener('input', function () {
+      updateSliderValue(this, alertDelayValue, 's');
+      soundTimeout = this.value * 1000;
+      if (alertSoundInterval) {
+        clearInterval(alertSoundInterval);
+        alertSoundInterval = null;
+      }
+    });
+
+    volumeSlider.addEventListener('input', function() {
+      updateSliderValue(this, volumeValue);
+    });
+
+    mirrorSwitch.addEventListener('change', applyMirrorEffect);
+    
+    demoAlertBtn.addEventListener('click', () => {
+      testTriggered = true
+      showPostureAlert();
+      if (soundAlertsSwitch.checked) {
+        playAlertSound(currentAlertSound); // 👈 Force play once for the demo
+      }
+      setTimeout(() => {
+        testTriggered = false
+      }, 2000); // time in milliseconds, e.g., 3000 = 3 seconds
+    });
+    
+    // Dropdown event listeners
+    dropdowns.forEach(dropdown => {
+      const select = dropdown.querySelector('.dropdown-select');
+      select.addEventListener('click', () => toggleDropdown(dropdown));
+      
+      // Handle option selection
+      const options = dropdown.querySelectorAll('.dropdown-option');
+      options.forEach(option => {
+        option.addEventListener('click', function() {
+          const soundId = this.dataset.value;
+          const dropdownId = dropdown.id;
+          updateSelectedSound(dropdownId, soundId);
+          toggleDropdown(dropdown); // Close dropdown after selection
+        });
+      });
+    });
+    
+    // Sound preview buttons
+    soundPreviewButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent dropdown from closing
+        const soundId = this.dataset.sound;
+        playAlertSound(soundId);
+      });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown')) {
+        dropdowns.forEach(dropdown => {
+          dropdown.classList.remove('open');
+        });
+      }
+    });
+
+    // Initialize slider values
+    updateSliderValue(sensitivitySlider, sensitivityValue, '');
+    updateSliderValue(alertDelaySlider, alertDelayValue, 's');
+    updateSliderValue(volumeSlider, volumeValue);
+
+  </script>
+</body>
+</html>
