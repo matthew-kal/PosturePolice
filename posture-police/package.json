@@ -1,11 +1,18 @@
 {
   "name": "posture-police",
   "displayName": "Posture Police",
+  "publisher": "JoffreLoorMatthewKalender",
   "description": "Detects if a user is slouching while coding through image processing and alerts them with either a noise or an alert. ",
-  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthew-kal/Slouch--DEV.git"
+  },
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.97.0"
   },
+  "license": "MIT",
+  "icon": "media/posturepolice_logo.png",
   "categories": [
     "Other"
   ],
@@ -28,6 +35,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/express": "^5.0.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.97.0",
@@ -36,6 +44,7 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.19.0",
+    "express": "^5.1.0",
     "typescript": "^5.7.3"
   },
   "dependencies": {
@@ -43,6 +52,9 @@
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/pose": "^0.5.1675469404",
     "axios": "^1.9.0",
-    "chrome-launcher": "^1.1.2"
+    "chrome-launcher": "^1.1.2",
+    "mjpeg-server": "^0.3.1",
+    "node-webcam": "^0.8.2",
+    "ws": "^8.18.2"
   }
 }
