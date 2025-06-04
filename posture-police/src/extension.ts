@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
       chromeLauncher.launch({
         ignoreDefaultFlags: true,
         chromeFlags: [
-          `--app=file:///${path.join(context.extensionPath, 'src', 'camera', 'camera.html').replace(/\\/g, '/')}`,
+          `--app=file:///${path.join(context.extensionPath, 'camera', 'camera.html').replace(/\\/g, '/')}`,
           '--disable-background-timer-throttling',
           '--disable-renderer-backgrounding',
           '--disable-backgrounding-occluded-windows',

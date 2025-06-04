@@ -1055,84 +1055,115 @@
       const LEFT_EYE = 33;
       const RIGHT_EYE = 263;
 
-      let processingInterval;
       const params    = new URLSearchParams(location.search);
       const ctrlPort  = params.get('ctrl') ?? 3000;   // fallback dev-port
       let   streamPort = null; 
+      let processingInterval = null;
+      let frameProcessing = false;
 
-      async function startCamera (port) {
-        /* -------- UI: spinner ---------- */
+      async function startCamera(port) {
         const overlay = document.getElementById('camera-loading');
+
+        // 1) Show a loading spinner
         overlay.querySelector('span').textContent = 'Loading models…';
         overlay.classList.remove('hidden');
-
         cameraPlaceholder.style.display = 'none';
         stopCameraBtn.style.display     = 'block';
 
-        /* -------- 1.   warm-up (downloads WASM once per page) --------------- */
-        await mpReady;                    //  mpReady must be declared earlier
+        // 2) Wait for MediaPipe to finish downloading & compiling its WASM binaries:
+        await mpReady;  
         pose.onResults(onPoseResults);
         faceMesh.onResults(onFaceResults);
-        /* -------- 3.   connect MJPEG stream -------------------------------- */
-        overlay.querySelector('span').textContent = 'Connecting camera…';
 
+        // 3) Now connect the MJPEG stream:
+        overlay.querySelector('span').textContent = 'Connecting camera…';
         cameraVideo.crossOrigin = 'anonymous';
         cameraVideo.src         = `http://localhost:${port}/stream`;
 
-        await new Promise(res => {
-          const ready = () => { cameraVideo.removeEventListener('canplay', ready);
-                                res(); };
-          cameraVideo.addEventListener('canplay', ready);
-          setTimeout(res, 5000);   // fallback
+        // 4) Wait until the <video> element can play at least one frame:
+        await new Promise(resolve => {
+          const onCanPlay = () => {
+            cameraVideo.removeEventListener('canplay', onCanPlay);
+            resolve();
+          };
+          cameraVideo.addEventListener('canplay', onCanPlay);
+          // fallback in case canplay never fires
+          setTimeout(resolve, 5000);
         });
 
-        /* -------- 4.   show UI --------------------------------------------- */
-        overlay.classList.add('hidden');
-        cameraVideo.style.display       = 'block';
-        cameraActiveSwitch.checked      = true;
-        applyMirrorEffect();
-
-        /* -------- 5.   processing loop (requestAnimationFrame) -------------- */
+        // 5) At this point, <video> has decoded a frame and mpReady is done.
+        //    Draw exactly one frame to the canvas and send it through MediaPipe
+        //    so that its internal graph compilation (WebGL shaders, etc.) finishes now:
         const canvas = document.getElementById('processing-canvas');
         const ctx    = canvas.getContext('2d');
 
-        let busy = false;
-        const loop = async () => {
-          rafId = requestAnimationFrame(loop);
-          if (busy) return;
-          busy = true;
+        // Draw that first frame offscreen:
+        ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+        const warmupFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // Force MediaPipe to JIT‐compile its graphs on that frame:
+        try {
+          await pose.send({ image: warmupFrame });
+        } catch (e) {
+          console.warn('⚠️ Pose warm‐up failed:', e);
+        }
+        try {
+          await faceMesh.send({ image: warmupFrame });
+        } catch (e) {
+          console.warn('⚠️ FaceMesh warm‐up failed:', e);
+        }
+
+        // 6) Now that both the WASM is loaded and the first inference run is done,
+        //    hide the spinner and reveal the video UI:
+        overlay.classList.add('hidden');
+        cameraVideo.style.display  = 'block';
+        cameraActiveSwitch.checked = true;
+        applyMirrorEffect();
+
+        // 7) Start the interval loop (every 50 ms) for real processing:
+        frameProcessing = false;
+        processingInterval = setInterval(async () => {
+          if (frameProcessing) return;
+          frameProcessing = true;
+
           try {
+            // Copy the current video frame onto the canvas:
             ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
             const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Send that frame to MediaPipe for inference:
             await pose.send({ image: frame });
             await faceMesh.send({ image: frame });
           } catch (err) {
-            console.warn('⚠️ frame skipped:', err.message);
+            console.warn('⚠️ Frame skipped:', err.message);
+          } finally {
+            frameProcessing = false;
           }
-          busy = false;
-        };
-        loop();
+        }, 50);
 
-        cameraOff = false;
         console.log('✅ Camera ready');
       }
 
 
       function stopCamera() {
-        // Stop processing interval
-        cameraVideo.style.display = 'none';
+        // 1) Hide the video UI
+        cameraVideo.style.display       = 'none';
         cameraPlaceholder.style.display = 'flex';
-        stopCameraBtn.style.display = 'none';
-        cameraActiveSwitch.checked = false;
-        cameraVideo.src = ''; // clear MJPEG stream
-         if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        slouchBuffer.fill(false);
-        hidePostureAlert()
-        document.getElementById('camera-loading').classList.add('hidden');    
+        stopCameraBtn.style.display     = 'none';
+        cameraActiveSwitch.checked      = false;
+        cameraVideo.src                 = '';
 
+        // 2) Stop the interval loop
+        if (processingInterval !== null) {
+          clearInterval(processingInterval);
+          processingInterval = null;
+        }
+        frameProcessing = false;        // reset guard
+
+        // 3) Clear posture buffer + any alerts
+        slouchBuffer.fill(false);
+        hidePostureAlert();
+        document.getElementById('camera-loading').classList.add('hidden');
       }
 
       function switchTab(tabId) {
