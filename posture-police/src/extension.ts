@@ -7,7 +7,7 @@ let controlServerProcess: ChildProcessWithoutNullStreams | null = null;
 export function activate(context: vscode.ExtensionContext) {
   // 🟢 Start control server once at activation
   if (!controlServerProcess) {
-    const scriptPath = path.join(context.extensionPath, 'src', 'camera', 'camera_hub.js');
+    const scriptPath = path.join(context.extensionPath, 'dist', 'camera_hub.js');
     controlServerProcess = spawn('node', [scriptPath]);
 
     controlServerProcess.stdout.on('data', data => {

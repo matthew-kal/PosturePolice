@@ -42,7 +42,7 @@ let controlServerProcess = null;
 function activate(context) {
     // 🟢 Start control server once at activation
     if (!controlServerProcess) {
-        const scriptPath = path.join(context.extensionPath, 'src', 'camera', 'camera_hub.js');
+        const scriptPath = path.join(context.extensionPath, 'dist', 'camera_hub.js');
         controlServerProcess = (0, child_process_1.spawn)('node', [scriptPath]);
         controlServerProcess.stdout.on('data', data => {
             console.log(`[controller]: ${data}`);
@@ -61,7 +61,7 @@ function activate(context) {
         chromeLauncher.launch({
             ignoreDefaultFlags: true,
             chromeFlags: [
-                `--app=file:///${path.join(context.extensionPath, 'src', 'camera', 'camera.html').replace(/\\/g, '/')}`,
+                `--app=file:///${path.join(context.extensionPath, 'camera', 'camera.html').replace(/\\/g, '/')}`,
                 '--disable-background-timer-throttling',
                 '--disable-renderer-backgrounding',
                 '--disable-backgrounding-occluded-windows',
